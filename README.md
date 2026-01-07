@@ -386,45 +386,6 @@ flowchart TB
 | SC-7 | Using Gateway API | `kubectl get gateway,httproute -A` |
 | SC-8 | End-to-End TLS working | `curl -k https://<IP>/app1` |
 
-## Project Structure
-
-```
-kudos-poc/
-├── terraform/              # Azure infrastructure
-│   ├── providers.tf
-│   ├── variables.tf        # Includes TLS configuration
-│   ├── main.tf
-│   ├── network.tf          # NSG rules for HTTPS
-│   ├── aks.tf
-│   ├── appgateway.tf       # HTTPS listeners, SSL certs
-│   └── outputs.tf
-├── kubernetes/             # K8s manifests
-│   ├── 00-namespaces.yaml
-│   ├── 01-gateway.yaml     # HTTPS listener with TLS
-│   ├── 02-health-responder.yaml
-│   ├── 03-sample-app-1.yaml
-│   ├── 04-sample-app-2.yaml
-│   ├── 05-httproutes.yaml
-│   └── 06-reference-grants.yaml
-├── scripts/                # Deployment scripts
-│   ├── 00-setup-subscription.sh   # Multi-subscription setup
-│   ├── 01-deploy-terraform.sh
-│   ├── 02-install-istio-ambient.sh
-│   ├── 03-deploy-kubernetes.sh
-│   ├── 04-update-appgw-backend.sh
-│   ├── generate-tls-certs.sh      # TLS certificate generation
-│   ├── create-tls-secrets.sh      # K8s TLS secrets
-│   └── 99-cleanup.sh
-├── tests/
-│   └── validate-poc.sh
-├── certs/                  # Generated TLS certificates (gitignored)
-│   ├── ca.crt              # Root CA
-│   ├── appgw.pfx           # App Gateway certificate
-│   ├── istio-gw.crt        # Istio Gateway certificate
-│   └── istio-gw.key
-└── .gitignore
-```
-
 ## End-to-End TLS Configuration
 
 This POC implements **End-to-End TLS** encryption:
@@ -459,7 +420,7 @@ When running `01-deploy-terraform.sh`:
 
 ## Critical Configuration Fixes
 
-> ⚠️ **Important:** This POC required two critical fixes for Azure Application Gateway + AKS Internal Load Balancer integration. Without these fixes, the backend will show as "Unhealthy" and requests will fail with 502 errors.
+> **Important:** This POC required two critical fixes for Azure Application Gateway + AKS Internal Load Balancer integration. Without these fixes, the backend will show as "Unhealthy" and requests will fail with 502 errors.
 
 ### Fix #1: HTTPRoute for /healthz (Health Probe Routing)
 
@@ -531,7 +492,7 @@ spec:
 
 ### Fix #2: externalTrafficPolicy: Local (Azure DSR Fix)
 
-> 🔴 **CRITICAL for Azure ILB + App Gateway Integration:** This fix is **mandatory** when using Azure Application Gateway with an AKS Internal Load Balancer. Without it, all requests will timeout with 502 errors.
+> **CRITICAL for Azure ILB + App Gateway Integration:** This fix is **mandatory** when using Azure Application Gateway with an AKS Internal Load Balancer. Without it, all requests will timeout with 502 errors.
 
 **Problem:** App Gateway backend health showed "Unhealthy" with connection timeouts, even though the Internal LB IP was correct and pods were running.
 
@@ -688,21 +649,6 @@ kubectl get secret istio-gateway-tls -n istio-ingress
 2. **Trusted root certificate**: App Gateway needs the CA certificate that signed the backend cert
 
 3. **TLS secret not found**: Run `./scripts/create-tls-secrets.sh` or check namespace
-
-## Multi-Subscription Support
-
-To deploy to a different Azure subscription:
-
-```bash
-# Option 1: Set subscription before deploying
-az account set --subscription <SUBSCRIPTION_ID>
-./scripts/01-deploy-terraform.sh
-
-# Option 2: Use the setup script
-./scripts/00-setup-subscription.sh
-```
-
-The setup script handles Terraform state management for multiple subscriptions using workspaces.
 
 ## Access URLs
 
