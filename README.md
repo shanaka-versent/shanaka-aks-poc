@@ -10,6 +10,19 @@ This POC validates Azure Application Gateway integration with Kubernetes Gateway
 - **Terraform** for all Azure infrastructure
 - **End-to-End TLS** with self-signed certificates
 
+## POC Success Criteria
+
+| ID | Criteria | Validation |
+|----|----------|------------|
+| SC-1 | App Gateway health probes succeed | Backend Health = "Healthy" |
+| SC-2 | `/healthz/ready` returns HTTP 200 | `curl -k https://<IP>/healthz/ready` |
+| SC-3 | `/app1` routes to Sample App 1 | Returns "Hello from App 1" |
+| SC-4 | `/app2` routes to Sample App 2 | Returns "Hello from App 2" |
+| SC-5 | Istio Ambient Mesh active | Pods have 1 container (no sidecars) |
+| SC-6 | ztunnel running | `kubectl get pods -n istio-system -l app=ztunnel` |
+| SC-7 | Using Gateway API | `kubectl get gateway,httproute -A` |
+| SC-8 | End-to-End TLS working | `curl -k https://<IP>/app1` |
+
 ## Architecture
 
 ### High-Level Overview
@@ -359,19 +372,6 @@ flowchart TB
 ./scripts/99-cleanup.sh
 ```
 
-## Success Criteria
-
-| ID | Criteria | Validation |
-|----|----------|------------|
-| SC-1 | App Gateway health probes succeed | Backend Health = "Healthy" |
-| SC-2 | `/healthz/ready` returns HTTP 200 | `curl -k https://<IP>/healthz/ready` |
-| SC-3 | `/app1` routes to Sample App 1 | Returns "Hello from App 1" |
-| SC-4 | `/app2` routes to Sample App 2 | Returns "Hello from App 2" |
-| SC-5 | Istio Ambient Mesh active | Pods have 1 container (no sidecars) |
-| SC-6 | ztunnel running | `kubectl get pods -n istio-system -l app=ztunnel` |
-| SC-7 | Using Gateway API | `kubectl get gateway,httproute -A` |
-| SC-8 | End-to-End TLS working | `curl -k https://<IP>/app1` |
-
 ## End-to-End TLS Configuration
 
 This POC implements **End-to-End TLS** encryption:
@@ -579,7 +579,8 @@ lifecycle {
 }
 ```
 
-## Quick Reference Commands
+<details>
+<summary><strong>Quick Reference Commands</strong></summary>
 
 ```bash
 # Get AKS credentials
@@ -614,6 +615,8 @@ az network application-gateway show-backend-health \
 # Check TLS secret
 kubectl get secret istio-gateway-tls -n istio-ingress
 ```
+
+</details>
 
 ## Troubleshooting
 
