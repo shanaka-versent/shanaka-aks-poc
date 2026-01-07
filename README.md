@@ -15,55 +15,63 @@ This POC validates Azure Application Gateway integration with Kubernetes Gateway
 ### High-Level Overview
 
 ```mermaid
-flowchart TB
-    subgraph Internet["🌐 INTERNET"]
-        Client["Client Request"]
+flowchart TD
+    Client([Client])
+
+    subgraph AZURE [" "]
+        direction TB
+
+        subgraph AppGW ["Azure Application Gateway v2"]
+            FE["Public IP: 68.218.110.49"]
+            HTTPS1["HTTPS Listener :443"]
+            TLS1{{"TLS Termination #1"}}
+            BP["Backend Pool → 10.0.1.x"]
+        end
+
+        subgraph AKS ["AKS Cluster"]
+            ILB["Internal Load Balancer"]
+
+            subgraph ISTIO ["Istio Gateway Pod"]
+                GW["Gateway: kudos-gateway"]
+                TLS2{{"TLS Termination #2"}}
+                HR["HTTPRoute Matching"]
+            end
+
+            subgraph APPS ["Backend Pods"]
+                H["health-responder"]
+                A1["sample-app-1"]
+                A2["sample-app-2"]
+            end
+
+            ZT["ztunnel DaemonSet"]
+        end
     end
 
-    subgraph AppGW["AZURE APPLICATION GATEWAY v2"]
-        Frontend["Frontend IP<br/>(Public IP)"]
-        Listener["HTTPS Listener<br/>(TLS Termination #1)"]
-        Rule["Request Routing Rule<br/>(Path-based)"]
-        Backend["Backend Pool<br/>aks-gateway-pool<br/>Target: 10.0.1.x<br/>Protocol: HTTPS:443"]
-    end
+    Client -->|"HTTPS :443"| FE
+    FE --> HTTPS1
+    HTTPS1 --> TLS1
+    TLS1 -->|"Re-encrypt"| BP
+    BP -->|"HTTPS :443"| ILB
+    ILB --> GW
+    GW --> TLS2
+    TLS2 --> HR
+    HR -->|"/healthz/*"| H
+    HR -->|"/app1"| A1
+    HR -->|"/app2"| A2
+    ZT -.->|"mTLS"| APPS
 
-    subgraph AKS["AKS CLUSTER"]
-        subgraph ILB["Azure Internal Load Balancer"]
-            LBService["kudos-gateway-istio<br/>externalTrafficPolicy: Local"]
-        end
+    classDef azure fill:#e6f2ff,stroke:#0078d4,stroke-width:2px,color:#333
+    classDef aks fill:#f0f7ff,stroke:#326ce5,stroke-width:2px,color:#333
+    classDef istio fill:#f5f5f5,stroke:#466bb0,stroke-width:2px,color:#333
+    classDef apps fill:#f9f9f9,stroke:#6b7280,stroke-width:1px,color:#333
+    classDef tls fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#333
 
-        subgraph IstioGW["ISTIO GATEWAY POD<br/>(istio-ingress namespace)"]
-            Gateway["Gateway: kudos-gateway<br/>Listener: HTTPS:443<br/>TLS Secret: istio-gateway-tls<br/>(TLS Termination #2)"]
-            Routes["HTTPRoutes"]
-        end
-
-        subgraph Apps["Backend Services"]
-            Health["health-responder<br/>/healthz/*<br/>gateway-health ns"]
-            App1["sample-app-1<br/>/app1<br/>sample-apps ns"]
-            App2["sample-app-2<br/>/app2<br/>sample-apps ns"]
-        end
-
-        subgraph Ambient["ISTIO AMBIENT MESH<br/>(istio-system namespace)"]
-            Ztunnel["ztunnel (DaemonSet)<br/>• Transparent proxy<br/>• mTLS between pods<br/>• L4 policies"]
-        end
-    end
-
-    Client -->|"HTTPS:443"| Frontend
-    Frontend --> Listener
-    Listener --> Rule
-    Rule --> Backend
-    Backend -->|"HTTPS:443"| LBService
-    LBService --> Gateway
-    Gateway --> Routes
-    Routes --> Health
-    Routes --> App1
-    Routes --> App2
-    Ztunnel -.->|"mTLS"| Apps
-
-    style AppGW fill:#0078D4,color:#fff
-    style AKS fill:#326CE5,color:#fff
-    style IstioGW fill:#466BB0,color:#fff
-    style Ambient fill:#4B5563,color:#fff
+    class AZURE azure
+    class AppGW azure
+    class AKS aks
+    class ISTIO istio
+    class APPS apps
+    class TLS1,TLS2 tls
 ```
 
 ### End-to-End TLS Flow (Detailed)
@@ -144,10 +152,15 @@ flowchart TB
     HR3 --> BE3
     Routes -.->|"requires"| Grants
 
-    style GW fill:#466BB0,color:#fff
-    style SVC fill:#0078D4,color:#fff
-    style Routes fill:#2E7D32,color:#fff
-    style Grants fill:#7B1FA2,color:#fff
+    classDef gateway fill:#e8eaf6,stroke:#466bb0,stroke-width:2px,color:#333
+    classDef service fill:#e3f2fd,stroke:#0078d4,stroke-width:2px,color:#333
+    classDef routes fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#333
+    classDef grants fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#333
+
+    class GW gateway
+    class SVC service
+    class Routes routes
+    class Grants grants
 ```
 
 #### Gateway Listener Configuration
@@ -191,9 +204,13 @@ flowchart TB
     App2 <-.->|"Intercepted"| Ztunnel
     Health <-.->|"Intercepted"| Ztunnel
 
-    style Ambient fill:#466BB0,color:#fff
-    style Ztunnel fill:#FF9800,color:#fff
-    style Pods fill:#4CAF50,color:#fff
+    classDef ambient fill:#e8eaf6,stroke:#466bb0,stroke-width:2px,color:#333
+    classDef ztunnel fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#333
+    classDef pods fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#333
+
+    class Ambient ambient
+    class ZtunnelDS ztunnel
+    class Pods pods
 ```
 
 **Key Benefits:**
@@ -214,31 +231,31 @@ flowchart TB
 
 ```mermaid
 flowchart TB
-    subgraph Step1["1️⃣ Client Request"]
+    subgraph Step1["1. Client Request"]
         Client["curl -k https://68.218.110.49/app1"]
     end
 
-    subgraph Step2["2️⃣ App Gateway Frontend"]
-        AGW["Public IP: 68.218.110.49<br/>Listener: https-listener:443<br/>🔐 TLS Termination #1"]
+    subgraph Step2["2. App Gateway Frontend"]
+        AGW["Public IP: 68.218.110.49<br/>Listener: https-listener:443<br/>TLS Termination #1"]
     end
 
-    subgraph Step3["3️⃣ App Gateway Backend"]
+    subgraph Step3["3. App Gateway Backend"]
         Backend["Backend Pool: aks-gateway-pool<br/>Target: 10.0.1.x (Internal LB)<br/>Protocol: HTTPS:443<br/>Host Header: kudos-gateway.istio-ingress.svc.cluster.local"]
     end
 
-    subgraph Step4["4️⃣ Azure Internal LB"]
-        ILB["IP: 10.0.1.x<br/>Service: kudos-gateway-istio<br/>⚠️ externalTrafficPolicy: Local"]
+    subgraph Step4["4. Azure Internal LB"]
+        ILB["IP: 10.0.1.x<br/>Service: kudos-gateway-istio<br/>externalTrafficPolicy: Local"]
     end
 
-    subgraph Step5["5️⃣ Istio Gateway Pod"]
-        Gateway["🔐 TLS Termination #2<br/>Gateway: kudos-gateway<br/>HTTPRoute matching"]
+    subgraph Step5["5. Istio Gateway Pod"]
+        Gateway["TLS Termination #2<br/>Gateway: kudos-gateway<br/>HTTPRoute matching"]
     end
 
-    subgraph Step6["6️⃣ HTTPRoute"]
+    subgraph Step6["6. HTTPRoute"]
         Route["Path: /app1 → app1-route<br/>Backend: sample-app-1:8080"]
     end
 
-    subgraph Step7["7️⃣ Backend Pod"]
+    subgraph Step7["7. Backend Pod"]
         Pod["sample-app-1 (nginx)<br/>Port: 8080<br/>Returns: Hello from App 1!"]
     end
 
@@ -249,27 +266,33 @@ flowchart TB
     Gateway --> Route
     Route -->|"HTTP"| Pod
 
-    style Step1 fill:#1976D2,color:#fff
-    style Step2 fill:#0078D4,color:#fff
-    style Step3 fill:#0078D4,color:#fff
-    style Step4 fill:#7B1FA2,color:#fff
-    style Step5 fill:#466BB0,color:#fff
-    style Step6 fill:#2E7D32,color:#fff
-    style Step7 fill:#4CAF50,color:#fff
+    classDef client fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#333
+    classDef appgw fill:#e6f2ff,stroke:#0078d4,stroke-width:2px,color:#333
+    classDef ilb fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#333
+    classDef istio fill:#e8eaf6,stroke:#466bb0,stroke-width:2px,color:#333
+    classDef route fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#333
+    classDef backend fill:#f1f8e9,stroke:#388e3c,stroke-width:2px,color:#333
+
+    class Step1 client
+    class Step2,Step3 appgw
+    class Step4 ilb
+    class Step5 istio
+    class Step6 route
+    class Step7 backend
 ```
 
 ### Network Diagram
 
 ```mermaid
 flowchart TB
-    subgraph Azure["☁️ AZURE"]
+    subgraph Azure["AZURE"]
         subgraph VNet["VNet: vnet-kudos-poc (10.0.0.0/16)"]
             subgraph AppGWSubnet["Subnet: appgw-subnet (10.0.0.0/24)"]
-                AppGW["🛡️ Application Gateway<br/>appgw-kudos-poc<br/>Public IP: 68.218.110.49<br/>Private IP: 10.0.0.x<br/>NSG: Allow 80, 443"]
+                AppGW["Application Gateway<br/>appgw-kudos-poc<br/>Public IP: 68.218.110.49<br/>Private IP: 10.0.0.x<br/>NSG: Allow 80, 443"]
             end
 
             subgraph AKSSubnet["Subnet: aks-subnet (10.0.1.0/24)"]
-                subgraph AKS["🚀 AKS Cluster: aks-kudos-poc"]
+                subgraph AKS["AKS Cluster: aks-kudos-poc"]
                     ILB["Internal LB: 10.0.1.x"]
 
                     subgraph Pods["Pods"]
@@ -284,7 +307,7 @@ flowchart TB
         end
     end
 
-    Internet["🌐 Internet"] -->|"HTTPS:443"| AppGW
+    Internet(["Internet"]) -->|"HTTPS:443"| AppGW
     AppGW -->|"HTTPS:443"| ILB
     ILB --> GWPod
     GWPod --> HealthPod
@@ -292,11 +315,17 @@ flowchart TB
     GWPod --> App2Pod
     ZtPod -.->|"mTLS"| Pods
 
-    style Azure fill:#0078D4,color:#fff
-    style VNet fill:#1565C0,color:#fff
-    style AppGWSubnet fill:#1976D2,color:#fff
-    style AKSSubnet fill:#1976D2,color:#fff
-    style AKS fill:#326CE5,color:#fff
+    classDef azure fill:#e6f2ff,stroke:#0078d4,stroke-width:2px,color:#333
+    classDef vnet fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#333
+    classDef subnet fill:#e8f4fd,stroke:#1976d2,stroke-width:2px,color:#333
+    classDef aks fill:#e8eaf6,stroke:#326ce5,stroke-width:2px,color:#333
+    classDef pods fill:#f5f5f5,stroke:#757575,stroke-width:1px,color:#333
+
+    class Azure azure
+    class VNet vnet
+    class AppGWSubnet,AKSSubnet subnet
+    class AKS aks
+    class Pods pods
 ```
 
 #### Network Configuration
@@ -449,16 +478,23 @@ flowchart LR
     end
 
     subgraph Results["Result"]
-        NoRoute["❌ NO HTTPRoute<br/>404 Not Found<br/>Backend Unhealthy"]
-        WithRoute["✅ WITH HTTPRoute<br/>200 OK<br/>Backend Healthy"]
+        NoRoute["NO HTTPRoute<br/>404 Not Found<br/>Backend Unhealthy"]
+        WithRoute["WITH HTTPRoute<br/>200 OK<br/>Backend Healthy"]
     end
 
     Probe --> Match
     Match -->|"No match"| NoRoute
     Match -->|"Match found"| WithRoute
 
-    style NoRoute fill:#EF5350,color:#fff
-    style WithRoute fill:#4CAF50,color:#fff
+    classDef probe fill:#e3f2fd,stroke:#1976d2,stroke-width:2px,color:#333
+    classDef gateway fill:#e8eaf6,stroke:#466bb0,stroke-width:2px,color:#333
+    classDef fail fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#333
+    classDef pass fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#333
+
+    class AppGW probe
+    class IstioGW gateway
+    class NoRoute fail
+    class WithRoute pass
 ```
 
 **Files containing this fix:**
@@ -505,24 +541,28 @@ spec:
 
 ```mermaid
 flowchart TB
-    subgraph Broken["❌ DEFAULT: externalTrafficPolicy: Cluster (BROKEN)"]
+    subgraph Broken["DEFAULT: externalTrafficPolicy: Cluster (BROKEN)"]
         direction LR
         AGW1["App Gateway"] -->|"Request"| ILB1["Internal LB"]
         ILB1 -->|"SNAT happens"| KP1["kube-proxy"]
         KP1 --> Pod1["Pod"]
-        Pod1 -->|"Response to wrong IP!"| X1["❌ Timeout / 502"]
+        Pod1 -->|"Response to wrong IP!"| X1["Timeout / 502"]
     end
 
-    subgraph Working["✅ FIX: externalTrafficPolicy: Local (WORKING)"]
+    subgraph Working["FIX: externalTrafficPolicy: Local (WORKING)"]
         direction LR
         AGW2["App Gateway"] -->|"Request"| ILB2["Internal LB"]
         ILB2 -->|"No SNAT<br/>Direct routing"| Pod2["Pod"]
         Pod2 -->|"Response via DSR"| AGW2
     end
 
-    style Broken fill:#FFCDD2,color:#000
-    style Working fill:#C8E6C9,color:#000
-    style X1 fill:#EF5350,color:#fff
+    classDef broken fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#333
+    classDef working fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#333
+    classDef error fill:#ffcdd2,stroke:#b71c1c,stroke-width:2px,color:#333
+
+    class Broken broken
+    class Working working
+    class X1 error
 ```
 
 **Files containing this fix:**
