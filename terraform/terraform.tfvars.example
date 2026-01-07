@@ -1,0 +1,11 @@
+# Copy this file to terraform.tfvars and update values
+
+# Azure Subscription (optional - uses az CLI default if not set)
+# subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+location           = "australiaeast"
+environment        = "poc"
+project_name       = "kudos"
+kubernetes_version = "1.29"
+aks_node_count     = 2
+aks_node_vm_size   = "Standard_D2s_v3"

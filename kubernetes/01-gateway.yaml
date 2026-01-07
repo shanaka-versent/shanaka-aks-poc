@@ -1,0 +1,71 @@
+# Kubernetes Gateway API - Gateway Resource
+# This creates the Istio ingress gateway with an Internal Load Balancer
+#
+# IMPORTANT: This uses Gateway API (gateway.networking.k8s.io), NOT Ingress
+# IMPORTANT: NOT using classic networking.k8s.io/v1 Ingress resources
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: kudos-gateway
+  namespace: istio-ingress
+spec:
+  # Use Istio's Gateway API implementation (NOT IngressClass)
+  gatewayClassName: istio
+  
+  # Infrastructure configuration for the auto-created Service
+  infrastructure:
+    annotations:
+      # CRITICAL: This makes the LoadBalancer INTERNAL (not public)
+      service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+  
+  listeners:
+    - name: http
+      port: 80
+      protocol: HTTP
+      hostname: "*"
+      allowedRoutes:
+        namespaces:
+          from: All
+
+---
+# Alternative: If infrastructure.annotations doesn't work with your Istio version,
+# create the Gateway with ClusterIP and add a separate Internal LB Service
+
+# apiVersion: gateway.networking.k8s.io/v1
+# kind: Gateway
+# metadata:
+#   name: kudos-gateway
+#   namespace: istio-ingress
+#   annotations:
+#     # Force ClusterIP instead of LoadBalancer
+#     networking.istio.io/service-type: ClusterIP
+# spec:
+#   gatewayClassName: istio
+#   listeners:
+#     - name: http
+#       port: 80
+#       protocol: HTTP
+#       allowedRoutes:
+#         namespaces:
+#           from: All
+
+# ---
+# # Then create Internal LoadBalancer Service separately
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: kudos-gateway-ilb
+#   namespace: istio-ingress
+#   annotations:
+#     service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+# spec:
+#   type: LoadBalancer
+#   selector:
+#     istio.io/gateway-name: kudos-gateway
+#   ports:
+#     - name: http
+#       port: 80
+#       targetPort: 80
+#       protocol: TCP

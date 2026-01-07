@@ -1,0 +1,32 @@
+# ReferenceGrants allow HTTPRoutes to reference services across namespaces
+# Required for Gateway API cross-namespace references
+
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-gateway-health
+  namespace: gateway-health
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: gateway-health
+  to:
+    - group: ""
+      kind: Service
+
+---
+apiVersion: gateway.networking.k8s.io/v1beta1
+kind: ReferenceGrant
+metadata:
+  name: allow-sample-apps
+  namespace: sample-apps
+spec:
+  from:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      namespace: sample-apps
+  to:
+    - group: ""
+      kind: Service

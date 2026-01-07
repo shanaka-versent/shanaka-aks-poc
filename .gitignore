@@ -1,0 +1,58 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+!*.tfvars.example
+
+# IDE and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Claude / AI
+.claude/
+.claude*
+claude.json
+.anthropic/
+.ai/
+.cursor/
+.aider*
+.continue/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# Istio
+istio-*/
+
+# Secrets (never commit)
+*.pem
+*.key
+*.crt
+*.env
+.env*
+secrets/
+credentials/
