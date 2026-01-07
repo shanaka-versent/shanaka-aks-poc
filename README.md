@@ -545,7 +545,8 @@ kubectl get svc kudos-gateway-istio -n istio-ingress \
 
 ---
 
-## Additional Configuration Notes
+<details>
+<summary><strong>Additional Configuration Notes</strong></summary>
 
 ### Network Contributor Role
 
@@ -578,6 +579,8 @@ lifecycle {
   ]
 }
 ```
+
+</details>
 
 <details>
 <summary><strong>Quick Reference Commands</strong></summary>
@@ -618,7 +621,8 @@ kubectl get secret istio-gateway-tls -n istio-ingress
 
 </details>
 
-## Troubleshooting
+<details>
+<summary><strong>Troubleshooting</strong></summary>
 
 | Issue | Check | Fix |
 |-------|-------|-----|
@@ -638,6 +642,8 @@ kubectl get secret istio-gateway-tls -n istio-ingress
 2. **Trusted root certificate**: App Gateway needs the CA certificate that signed the backend cert
 
 3. **TLS secret not found**: Run `./scripts/create-tls-secrets.sh` or check namespace
+
+</details>
 
 ## Access URLs
 
