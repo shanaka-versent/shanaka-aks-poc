@@ -13,6 +13,7 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 *.tfvars
+*.auto.tfvars
 !*.tfvars.example
 
 # IDE and Editors
@@ -52,7 +53,12 @@ istio-*/
 *.pem
 *.key
 *.crt
+*.pfx
+*.p12
 *.env
 .env*
 secrets/
 credentials/
+
+# TLS Certificates
+certs/

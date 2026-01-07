@@ -6,25 +6,54 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 K8S_DIR="$PROJECT_ROOT/kubernetes"
+CERTS_DIR="$PROJECT_ROOT/certs"
+
+# Check if TLS is enabled (certificates exist)
+TLS_ENABLED=false
+if [ -f "$CERTS_DIR/istio-gw.crt" ] && [ -f "$CERTS_DIR/istio-gw.key" ]; then
+    TLS_ENABLED=true
+fi
 
 echo "=============================================="
 echo "  KUDOS POC - Step 3: Deploy K8s Resources  "
 echo "=============================================="
 echo ""
+if [ "$TLS_ENABLED" = true ]; then
+    echo "  TLS Mode: End-to-End TLS enabled"
+else
+    echo "  TLS Mode: HTTP only (run generate-tls-certs.sh for HTTPS)"
+fi
+echo ""
 
 # Deploy namespaces first
-echo "[1/9] Creating namespaces with Ambient mesh labels..."
+echo "[1/10] Creating namespaces with Ambient mesh labels..."
 kubectl apply -f "$K8S_DIR/00-namespaces.yaml"
 
 # Wait for namespaces
 sleep 2
 
+# Create TLS secrets if certificates exist
+if [ "$TLS_ENABLED" = true ]; then
+    echo "[2/10] Creating TLS secrets for End-to-End TLS..."
+    # Use pushd/popd to handle paths with spaces
+    pushd "$CERTS_DIR" > /dev/null
+    kubectl create secret tls istio-gateway-tls \
+        --cert=istio-gw.crt \
+        --key=istio-gw.key \
+        --namespace=istio-ingress \
+        --dry-run=client -o yaml | kubectl apply -f -
+    popd > /dev/null
+    echo "    TLS secret created: istio-gateway-tls"
+else
+    echo "[2/10] Skipping TLS secrets (no certificates found)..."
+fi
+
 # Deploy Gateway
-echo "[2/9] Deploying Gateway API Gateway..."
+echo "[3/10] Deploying Gateway API Gateway..."
 kubectl apply -f "$K8S_DIR/01-gateway.yaml"
 
 # Wait for Gateway to get an IP
-echo "[3/9] Waiting for Gateway to get Internal LB IP..."
+echo "[4/10] Waiting for Gateway to get Internal LB IP..."
 echo "    This may take 1-2 minutes..."
 
 for i in {1..60}; do
@@ -46,7 +75,7 @@ if [ -z "$IP" ]; then
 fi
 
 # Verify it's an INTERNAL Load Balancer (IP should be in AKS subnet range 10.0.1.x)
-echo "[4/9] Verifying Load Balancer is INTERNAL..."
+echo "[5/10] Verifying Load Balancer is INTERNAL..."
 if [[ "$IP" == 10.0.1.* ]]; then
     echo "    Confirmed: Internal LB IP ($IP is in AKS subnet 10.0.1.0/24)"
 else
@@ -56,26 +85,26 @@ else
 fi
 
 # CRITICAL: Set externalTrafficPolicy to Local for Azure ILB to work with App Gateway
-echo "[5/9] Configuring externalTrafficPolicy: Local..."
+echo "[6/10] Configuring externalTrafficPolicy: Local..."
 echo "    (Required for Azure ILB with DSR/Floating IP to work with App Gateway)"
 kubectl patch svc kudos-gateway-istio -n istio-ingress -p '{"spec":{"externalTrafficPolicy":"Local"}}'
 echo "    Done."
 
 # Deploy health responder
-echo "[6/9] Deploying health-responder..."
+echo "[7/10] Deploying health-responder..."
 kubectl apply -f "$K8S_DIR/02-health-responder.yaml"
 
 # Deploy sample apps
-echo "[7/9] Deploying sample applications..."
+echo "[8/10] Deploying sample applications..."
 kubectl apply -f "$K8S_DIR/03-sample-app-1.yaml"
 kubectl apply -f "$K8S_DIR/04-sample-app-2.yaml"
 
 # Deploy reference grants (for cross-namespace references)
-echo "[8/9] Deploying ReferenceGrants..."
+echo "[9/10] Deploying ReferenceGrants..."
 kubectl apply -f "$K8S_DIR/06-reference-grants.yaml"
 
 # Deploy HTTPRoutes
-echo "[9/9] Deploying HTTPRoutes..."
+echo "[10/10] Deploying HTTPRoutes..."
 kubectl apply -f "$K8S_DIR/05-httproutes.yaml"
 
 # Wait for pods to be ready

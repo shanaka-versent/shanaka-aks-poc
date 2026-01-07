@@ -32,6 +32,7 @@ cd "$PROJECT_ROOT/terraform"
 APPGW_IP=$(terraform output -raw appgw_public_ip 2>/dev/null || echo "")
 RESOURCE_GROUP=$(terraform output -raw resource_group_name 2>/dev/null || echo "")
 APPGW_NAME=$(terraform output -raw appgw_name 2>/dev/null || echo "")
+HTTPS_ENABLED=$(terraform output -raw https_enabled 2>/dev/null || echo "false")
 
 if [ -z "$APPGW_IP" ]; then
     fail "Could not get App Gateway IP. Is Terraform deployed?"
@@ -39,6 +40,11 @@ if [ -z "$APPGW_IP" ]; then
 fi
 
 info "App Gateway Public IP: $APPGW_IP"
+if [ "$HTTPS_ENABLED" == "true" ]; then
+    info "HTTPS Mode: End-to-End TLS enabled"
+else
+    info "HTTPS Mode: HTTP only"
+fi
 echo ""
 
 # ============================================
@@ -63,8 +69,11 @@ echo ""
 # SC-2: /healthz/ready returns HTTP 200
 # ============================================
 echo "--- SC-2: Health Endpoint ---"
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$APPGW_IP/healthz/ready" 2>/dev/null || echo "000")
-BODY=$(curl -s "http://$APPGW_IP/healthz/ready" 2>/dev/null || echo "")
+if [ "$HTTPS_ENABLED" == "true" ]; then
+    HTTP_CODE=$(curl -sk -o /dev/null -w "%{http_code}" "https://$APPGW_IP/healthz/ready" 2>/dev/null || echo "000")
+else
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://$APPGW_IP/healthz/ready" 2>/dev/null || echo "000")
+fi
 if [ "$HTTP_CODE" == "200" ]; then
     pass "/healthz/ready returned HTTP 200"
     ((TESTS_PASSED++))
@@ -78,7 +87,11 @@ echo ""
 # SC-3: /app1 routes to Sample App 1
 # ============================================
 echo "--- SC-3: App 1 Routing ---"
-RESPONSE=$(curl -s "http://$APPGW_IP/app1" 2>/dev/null || echo "")
+if [ "$HTTPS_ENABLED" == "true" ]; then
+    RESPONSE=$(curl -sk "https://$APPGW_IP/app1" 2>/dev/null || echo "")
+else
+    RESPONSE=$(curl -s "http://$APPGW_IP/app1" 2>/dev/null || echo "")
+fi
 if [[ "$RESPONSE" == *"Hello from App 1"* ]]; then
     pass "/app1 returns 'Hello from App 1'"
     ((TESTS_PASSED++))
@@ -92,7 +105,11 @@ echo ""
 # SC-4: /app2 routes to Sample App 2
 # ============================================
 echo "--- SC-4: App 2 Routing ---"
-RESPONSE=$(curl -s "http://$APPGW_IP/app2" 2>/dev/null || echo "")
+if [ "$HTTPS_ENABLED" == "true" ]; then
+    RESPONSE=$(curl -sk "https://$APPGW_IP/app2" 2>/dev/null || echo "")
+else
+    RESPONSE=$(curl -s "http://$APPGW_IP/app2" 2>/dev/null || echo "")
+fi
 if [[ "$RESPONSE" == *"Hello from App 2"* ]]; then
     pass "/app2 returns 'Hello from App 2'"
     ((TESTS_PASSED++))
@@ -160,6 +177,60 @@ fi
 echo ""
 
 # ============================================
+# SC-8: HTTPS / End-to-End TLS (if enabled)
+# ============================================
+if [ "$HTTPS_ENABLED" == "true" ]; then
+    echo "--- SC-8: End-to-End TLS ---"
+
+    # Test HTTPS endpoint (using -k to allow self-signed certs)
+    HTTPS_CODE=$(curl -sk -o /dev/null -w "%{http_code}" "https://$APPGW_IP/healthz/ready" 2>/dev/null || echo "000")
+    if [ "$HTTPS_CODE" == "200" ]; then
+        pass "HTTPS /healthz/ready returned HTTP 200"
+        ((TESTS_PASSED++))
+    else
+        fail "HTTPS /healthz/ready returned HTTP $HTTPS_CODE"
+        ((TESTS_FAILED++))
+    fi
+
+    # Test HTTP to HTTPS redirect
+    REDIRECT_CODE=$(curl -s -o /dev/null -w "%{http_code}" -L "http://$APPGW_IP/healthz/ready" 2>/dev/null || echo "000")
+    REDIRECT_URL=$(curl -s -o /dev/null -w "%{redirect_url}" "http://$APPGW_IP/healthz/ready" 2>/dev/null || echo "")
+    if [[ "$REDIRECT_URL" == https://* ]] || [ "$REDIRECT_CODE" == "301" ] || [ "$REDIRECT_CODE" == "308" ]; then
+        pass "HTTP to HTTPS redirect working"
+    else
+        warn "HTTP to HTTPS redirect may not be working (code: $REDIRECT_CODE)"
+    fi
+
+    # Test HTTPS app routes
+    HTTPS_APP1=$(curl -sk "https://$APPGW_IP/app1" 2>/dev/null || echo "")
+    if [[ "$HTTPS_APP1" == *"Hello from App 1"* ]]; then
+        pass "HTTPS /app1 returns 'Hello from App 1'"
+        ((TESTS_PASSED++))
+    else
+        fail "HTTPS /app1 failed"
+        ((TESTS_FAILED++))
+    fi
+
+    HTTPS_APP2=$(curl -sk "https://$APPGW_IP/app2" 2>/dev/null || echo "")
+    if [[ "$HTTPS_APP2" == *"Hello from App 2"* ]]; then
+        pass "HTTPS /app2 returns 'Hello from App 2'"
+        ((TESTS_PASSED++))
+    else
+        fail "HTTPS /app2 failed"
+        ((TESTS_FAILED++))
+    fi
+
+    # Check TLS secret exists
+    TLS_SECRET=$(kubectl get secret istio-gateway-tls -n istio-ingress -o name 2>/dev/null || echo "")
+    if [ -n "$TLS_SECRET" ]; then
+        pass "TLS secret exists in istio-ingress namespace"
+    else
+        warn "TLS secret not found in istio-ingress namespace"
+    fi
+    echo ""
+fi
+
+# ============================================
 # Additional checks
 # ============================================
 echo "--- Additional Checks ---"
@@ -208,6 +279,20 @@ if [ "$TESTS_FAILED" -eq 0 ]; then
     echo "  - Kubernetes Gateway API (not Ingress)"
     echo "  - Istio Ambient Mesh (no sidecars)"
     echo "  - Path-based routing working"
+    if [ "$HTTPS_ENABLED" == "true" ]; then
+        echo "  - End-to-End TLS (HTTPS)"
+    fi
+    echo ""
+    echo "Access URLs:"
+    if [ "$HTTPS_ENABLED" == "true" ]; then
+        echo "  https://$APPGW_IP/healthz/ready"
+        echo "  https://$APPGW_IP/app1"
+        echo "  https://$APPGW_IP/app2"
+    else
+        echo "  http://$APPGW_IP/healthz/ready"
+        echo "  http://$APPGW_IP/app1"
+        echo "  http://$APPGW_IP/app2"
+    fi
     exit 0
 else
     echo -e "${RED}Some validation checks failed.${NC}"

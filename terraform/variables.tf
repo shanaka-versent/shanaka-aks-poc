@@ -61,6 +61,32 @@ variable "aks_node_vm_size" {
   default     = "Standard_D2s_v3"
 }
 
+# TLS Configuration
+variable "enable_https" {
+  description = "Enable HTTPS on App Gateway"
+  type        = bool
+  default     = true
+}
+
+variable "appgw_ssl_cert_path" {
+  description = "Path to App Gateway SSL certificate (PFX format)"
+  type        = string
+  default     = "../certs/appgw.pfx"
+}
+
+variable "appgw_ssl_cert_password" {
+  description = "Password for App Gateway SSL certificate"
+  type        = string
+  sensitive   = true
+  default     = "KudosPoc2024!"
+}
+
+variable "backend_https_enabled" {
+  description = "Enable HTTPS for backend (Istio Gateway)"
+  type        = bool
+  default     = true
+}
+
 # Tags
 variable "tags" {
   description = "Tags for all resources"

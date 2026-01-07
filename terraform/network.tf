@@ -101,6 +101,20 @@ resource "azurerm_network_security_rule" "allow_http" {
   network_security_group_name = azurerm_network_security_group.appgw.name
 }
 
+resource "azurerm_network_security_rule" "allow_https" {
+  name                        = "AllowHTTPS"
+  priority                    = 120
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "443"
+  source_address_prefix       = "Internet"
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.main.name
+  network_security_group_name = azurerm_network_security_group.appgw.name
+}
+
 resource "azurerm_subnet_network_security_group_association" "appgw" {
   subnet_id                 = azurerm_subnet.appgw.id
   network_security_group_id = azurerm_network_security_group.appgw.id

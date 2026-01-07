@@ -23,6 +23,29 @@ output "appgw_public_ip" {
   value       = azurerm_public_ip.appgw.ip_address
 }
 
+output "app_urls_https" {
+  description = "HTTPS URLs for applications"
+  value = var.enable_https ? {
+    health = "https://${azurerm_public_ip.appgw.ip_address}/healthz/ready"
+    app1   = "https://${azurerm_public_ip.appgw.ip_address}/app1"
+    app2   = "https://${azurerm_public_ip.appgw.ip_address}/app2"
+  } : null
+}
+
+output "app_urls_http" {
+  description = "HTTP URLs for applications (redirects to HTTPS when enabled)"
+  value = {
+    health = "http://${azurerm_public_ip.appgw.ip_address}/healthz/ready"
+    app1   = "http://${azurerm_public_ip.appgw.ip_address}/app1"
+    app2   = "http://${azurerm_public_ip.appgw.ip_address}/app2"
+  }
+}
+
+output "https_enabled" {
+  description = "Whether HTTPS is enabled"
+  value       = var.enable_https
+}
+
 output "appgw_backend_pool_name" {
   description = "Backend pool name to update with Internal LB IP"
   value       = "aks-gateway-pool"
