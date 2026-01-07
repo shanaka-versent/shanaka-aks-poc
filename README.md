@@ -408,6 +408,11 @@ When running `01-deploy-terraform.sh`:
 
 > **Important:** This POC required two critical fixes for Azure Application Gateway + AKS Internal Load Balancer integration. Without these fixes, the backend will show as "Unhealthy" and requests will fail with 502 errors.
 
+| Fix | Problem | Solution | Key Files |
+|-----|---------|----------|-----------|
+| **#1 HTTPRoute** | Health probes return 404 | Route `/healthz/*` to health-responder | `05-httproutes.yaml`, `02-health-responder.yaml` |
+| **#2 externalTrafficPolicy** | Connection timeouts due to SNAT | Set `externalTrafficPolicy: Local` | `03-deploy-kubernetes.sh`, `04-update-appgw-backend.sh` |
+
 ### Fix #1: HTTPRoute for /healthz (Health Probe Routing)
 
 **Problem:** App Gateway health probes to `/healthz/ready` returned 404 because Istio Gateway (Envoy) didn't know how to route health check requests.
@@ -533,15 +538,6 @@ kubectl get svc kudos-gateway-istio -n istio-ingress \
   -o jsonpath='{.spec.externalTrafficPolicy}'
 # Should output: Local
 ```
-
----
-
-### Summary of Critical Fixes
-
-| Fix | Problem | Solution | Key Files |
-|-----|---------|----------|-----------|
-| **#1 HTTPRoute** | Health probes return 404 | Route `/healthz/*` to health-responder | `05-httproutes.yaml`, `02-health-responder.yaml` |
-| **#2 externalTrafficPolicy** | Connection timeouts due to SNAT | Set `externalTrafficPolicy: Local` | `03-deploy-kubernetes.sh`, `04-update-appgw-backend.sh` |
 
 ---
 
