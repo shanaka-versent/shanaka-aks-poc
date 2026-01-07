@@ -213,20 +213,6 @@ flowchart TB
     class Pods pods
 ```
 
-**Key Benefits:**
-- No sidecar containers (1 container per pod instead of 2)
-- Lower resource overhead
-- Simplified deployment
-- Transparent traffic interception via ztunnel
-
-#### Namespace Configuration
-
-| Namespace | Ambient Mesh | Label |
-|-----------|--------------|-------|
-| `sample-apps` | ✅ Enabled | `istio.io/dataplane-mode: ambient` |
-| `gateway-health` | ✅ Enabled | `istio.io/dataplane-mode: ambient` |
-| `istio-ingress` | ❌ Not enabled | Gateway pod handles its own traffic |
-
 ### Request Flow Example: GET /app1
 
 ```mermaid
