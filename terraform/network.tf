@@ -38,7 +38,8 @@ resource "azurerm_network_security_rule" "appgw_to_aks" {
   access                      = "Allow"
   protocol                    = "Tcp"
   source_port_range           = "*"
-  destination_port_ranges     = ["80", "443", "15021"]
+  # Allow direct ports and NodePort range (30000-32767) for App Gateway backend
+  destination_port_ranges     = ["80", "443", "15021", "30000-32767"]
   source_address_prefix       = var.appgw_subnet_cidr
   destination_address_prefix  = var.aks_subnet_cidr
   resource_group_name         = azurerm_resource_group.main.name

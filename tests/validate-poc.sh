@@ -106,13 +106,14 @@ echo ""
 # SC-5: Istio Ambient Mesh active (no sidecars)
 # ============================================
 echo "--- SC-5: Ambient Mesh (No Sidecars) ---"
-SIDECAR_COUNT=$(kubectl get pods -n sample-apps -o jsonpath='{range .items[*]}{.spec.containers[*].name}{"\n"}{end}' 2>/dev/null | grep -c "istio-proxy" || echo "0")
-if [ "$SIDECAR_COUNT" == "0" ]; then
-    pass "No sidecars found - Ambient mesh active"
-    ((TESTS_PASSED++))
-else
+CONTAINERS=$(kubectl get pods -n sample-apps -o jsonpath='{range .items[*]}{.spec.containers[*].name}{"\n"}{end}' 2>/dev/null)
+if echo "$CONTAINERS" | grep -q "istio-proxy"; then
+    SIDECAR_COUNT=$(echo "$CONTAINERS" | grep -c "istio-proxy")
     fail "Found $SIDECAR_COUNT sidecars"
     ((TESTS_FAILED++))
+else
+    pass "No sidecars found - Ambient mesh active"
+    ((TESTS_PASSED++))
 fi
 
 # Check container count per pod
@@ -163,12 +164,20 @@ echo ""
 # ============================================
 echo "--- Additional Checks ---"
 
-# Check Internal LB IP
-INTERNAL_LB_IP=$(kubectl get svc -n istio-ingress kudos-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+# Check Internal LB IP (Istio creates service as <gateway-name>-istio)
+INTERNAL_LB_IP=$(kubectl get svc -n istio-ingress kudos-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
 if [[ "$INTERNAL_LB_IP" == 10.0.1.* ]]; then
     pass "Internal LB IP in correct subnet: $INTERNAL_LB_IP"
 else
     warn "Internal LB IP may not be in expected range: $INTERNAL_LB_IP"
+fi
+
+# Check externalTrafficPolicy (required for Azure ILB with App Gateway)
+TRAFFIC_POLICY=$(kubectl get svc -n istio-ingress kudos-gateway-istio -o jsonpath='{.spec.externalTrafficPolicy}' 2>/dev/null || echo "")
+if [ "$TRAFFIC_POLICY" == "Local" ]; then
+    pass "externalTrafficPolicy: Local (required for Azure ILB)"
+else
+    warn "externalTrafficPolicy is '$TRAFFIC_POLICY', should be 'Local' for Azure ILB"
 fi
 
 # Check all pods are ready

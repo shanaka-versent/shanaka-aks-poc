@@ -6,6 +6,6 @@
 location           = "australiaeast"
 environment        = "poc"
 project_name       = "kudos"
-kubernetes_version = "1.29"
+kubernetes_version = "1.32.5"
 aks_node_count     = 2
 aks_node_vm_size   = "Standard_D2s_v3"

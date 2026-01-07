@@ -13,22 +13,23 @@ echo "=============================================="
 echo ""
 
 # Deploy namespaces first
-echo "[1/8] Creating namespaces with Ambient mesh labels..."
+echo "[1/9] Creating namespaces with Ambient mesh labels..."
 kubectl apply -f "$K8S_DIR/00-namespaces.yaml"
 
 # Wait for namespaces
 sleep 2
 
 # Deploy Gateway
-echo "[2/8] Deploying Gateway API Gateway..."
+echo "[2/9] Deploying Gateway API Gateway..."
 kubectl apply -f "$K8S_DIR/01-gateway.yaml"
 
 # Wait for Gateway to get an IP
-echo "[3/8] Waiting for Gateway to get Internal LB IP..."
+echo "[3/9] Waiting for Gateway to get Internal LB IP..."
 echo "    This may take 1-2 minutes..."
 
 for i in {1..60}; do
-    IP=$(kubectl get svc -n istio-ingress kudos-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+    # Istio creates service as <gateway-name>-istio
+    IP=$(kubectl get svc -n istio-ingress kudos-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
     if [ -n "$IP" ]; then
         echo "    Gateway IP: $IP"
         break
@@ -45,30 +46,36 @@ if [ -z "$IP" ]; then
 fi
 
 # Verify it's an INTERNAL Load Balancer (IP should be in AKS subnet range 10.0.1.x)
-echo "[4/8] Verifying Load Balancer is INTERNAL..."
+echo "[4/9] Verifying Load Balancer is INTERNAL..."
 if [[ "$IP" == 10.0.1.* ]]; then
     echo "    Confirmed: Internal LB IP ($IP is in AKS subnet 10.0.1.0/24)"
 else
     echo "    WARNING: IP $IP may not be internal. Expected 10.0.1.x range."
     echo "    Checking service annotations..."
-    kubectl get svc kudos-gateway -n istio-ingress -o jsonpath='{.metadata.annotations}' | grep -i internal || echo "    No internal annotation found"
+    kubectl get svc kudos-gateway-istio -n istio-ingress -o jsonpath='{.metadata.annotations}' | grep -i internal || echo "    No internal annotation found"
 fi
 
+# CRITICAL: Set externalTrafficPolicy to Local for Azure ILB to work with App Gateway
+echo "[5/9] Configuring externalTrafficPolicy: Local..."
+echo "    (Required for Azure ILB with DSR/Floating IP to work with App Gateway)"
+kubectl patch svc kudos-gateway-istio -n istio-ingress -p '{"spec":{"externalTrafficPolicy":"Local"}}'
+echo "    Done."
+
 # Deploy health responder
-echo "[5/8] Deploying health-responder..."
+echo "[6/9] Deploying health-responder..."
 kubectl apply -f "$K8S_DIR/02-health-responder.yaml"
 
 # Deploy sample apps
-echo "[6/8] Deploying sample applications..."
+echo "[7/9] Deploying sample applications..."
 kubectl apply -f "$K8S_DIR/03-sample-app-1.yaml"
 kubectl apply -f "$K8S_DIR/04-sample-app-2.yaml"
 
 # Deploy reference grants (for cross-namespace references)
-echo "[7/8] Deploying ReferenceGrants..."
+echo "[8/9] Deploying ReferenceGrants..."
 kubectl apply -f "$K8S_DIR/06-reference-grants.yaml"
 
 # Deploy HTTPRoutes
-echo "[8/8] Deploying HTTPRoutes..."
+echo "[9/9] Deploying HTTPRoutes..."
 kubectl apply -f "$K8S_DIR/05-httproutes.yaml"
 
 # Wait for pods to be ready

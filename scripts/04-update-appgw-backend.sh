@@ -18,9 +18,9 @@ RESOURCE_GROUP=$(terraform output -raw resource_group_name)
 APPGW_NAME=$(terraform output -raw appgw_name)
 APPGW_PUBLIC_IP=$(terraform output -raw appgw_public_ip)
 
-# Get Gateway Internal LB IP
+# Get Gateway Internal LB IP (Istio creates service as <gateway-name>-istio)
 echo "[1/3] Getting Gateway Internal LB IP..."
-INTERNAL_LB_IP=$(kubectl get svc -n istio-ingress kudos-gateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+INTERNAL_LB_IP=$(kubectl get svc -n istio-ingress kudos-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 if [ -z "$INTERNAL_LB_IP" ]; then
     echo "ERROR: Could not get Gateway Internal LB IP"
@@ -30,13 +30,22 @@ fi
 
 echo "    Internal LB IP: $INTERNAL_LB_IP"
 
+# Verify externalTrafficPolicy is Local (required for Azure ILB with App Gateway)
+TRAFFIC_POLICY=$(kubectl get svc kudos-gateway-istio -n istio-ingress -o jsonpath='{.spec.externalTrafficPolicy}')
+if [ "$TRAFFIC_POLICY" != "Local" ]; then
+    echo "    WARNING: externalTrafficPolicy is '$TRAFFIC_POLICY', should be 'Local'"
+    echo "    Patching service..."
+    kubectl patch svc kudos-gateway-istio -n istio-ingress -p '{"spec":{"externalTrafficPolicy":"Local"}}'
+fi
+
 # Update App Gateway backend pool
 echo "[2/3] Updating App Gateway backend pool..."
 az network application-gateway address-pool update \
     --resource-group "$RESOURCE_GROUP" \
     --gateway-name "$APPGW_NAME" \
     --name "aks-gateway-pool" \
-    --servers "$INTERNAL_LB_IP"
+    --servers "$INTERNAL_LB_IP" \
+    --output none
 
 echo "[3/3] Verifying backend pool..."
 az network application-gateway address-pool show \
@@ -52,7 +61,7 @@ echo "=============================================="
 echo ""
 echo "Configuration:"
 echo "  App Gateway Public IP: $APPGW_PUBLIC_IP"
-echo "  Backend Pool IP:       $INTERNAL_LB_IP"
+echo "  Backend Pool IP:       $INTERNAL_LB_IP (Internal LB)"
 echo ""
 echo "Wait 30-60 seconds for health probes to succeed."
 echo ""

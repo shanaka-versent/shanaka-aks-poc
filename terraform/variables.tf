@@ -46,7 +46,7 @@ variable "appgw_subnet_cidr" {
 variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string
-  default     = "1.29"
+  default     = "1.32.5"
 }
 
 variable "aks_node_count" {

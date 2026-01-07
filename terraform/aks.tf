@@ -34,3 +34,10 @@ resource "azurerm_kubernetes_cluster" "main" {
   oidc_issuer_enabled       = true
   workload_identity_enabled = true
 }
+
+# Grant AKS Network Contributor role on VNet (required for internal load balancers)
+resource "azurerm_role_assignment" "aks_network_contributor" {
+  scope                = azurerm_virtual_network.main.id
+  role_definition_name = "Network Contributor"
+  principal_id         = azurerm_kubernetes_cluster.main.identity[0].principal_id
+}

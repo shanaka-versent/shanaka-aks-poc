@@ -21,6 +21,12 @@ resource "azurerm_application_gateway" "main" {
     capacity = 1
   }
 
+  # SSL Policy - Use TLS 1.2 minimum (required by Azure)
+  ssl_policy {
+    policy_type = "Predefined"
+    policy_name = "AppGwSslPolicy20220101"
+  }
+
   gateway_ip_configuration {
     name      = "gateway-ip-config"
     subnet_id = azurerm_subnet.appgw.id
@@ -43,23 +49,24 @@ resource "azurerm_application_gateway" "main" {
 
   # Backend HTTP Settings
   backend_http_settings {
-    name                  = "http-settings"
-    cookie_based_affinity = "Disabled"
-    port                  = 80
-    protocol              = "Http"
-    request_timeout       = 60
-    probe_name            = "health-probe"
+    name                                = "http-settings"
+    cookie_based_affinity               = "Disabled"
+    port                                = 80
+    protocol                            = "Http"
+    request_timeout                     = 60
+    probe_name                          = "health-probe"
+    pick_host_name_from_backend_address = true
   }
 
   # Health Probe for Gateway API
   probe {
-    name                = "health-probe"
-    protocol            = "Http"
-    path                = "/healthz/ready"
-    host                = "localhost"
-    interval            = 30
-    timeout             = 30
-    unhealthy_threshold = 3
+    name                                      = "health-probe"
+    protocol                                  = "Http"
+    path                                      = "/healthz/ready"
+    interval                                  = 30
+    timeout                                   = 60
+    unhealthy_threshold                       = 3
+    pick_host_name_from_backend_http_settings = true
 
     match {
       status_code = ["200-399"]

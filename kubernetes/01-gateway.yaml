@@ -19,12 +19,15 @@ spec:
     annotations:
       # CRITICAL: This makes the LoadBalancer INTERNAL (not public)
       service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    # NOTE: externalTrafficPolicy: Local is required for Azure ILB to work with
+    # App Gateway. This must be set via kubectl patch after Gateway creation:
+    # kubectl patch svc kudos-gateway-istio -n istio-ingress -p '{"spec":{"externalTrafficPolicy":"Local"}}'
   
   listeners:
     - name: http
       port: 80
       protocol: HTTP
-      hostname: "*"
+      # hostname omitted = accepts all hostnames
       allowedRoutes:
         namespaces:
           from: All
