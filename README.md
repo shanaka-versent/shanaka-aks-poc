@@ -1,6 +1,8 @@
-# KUDOS POC - Gateway API + Azure Application Gateway
+# KUDOS POC - Azure Application Gateway Integration with Kubernetes Gateway API for Multitenancy
 
 This POC validates Azure Application Gateway integration with Kubernetes Gateway API on AKS with Istio Ambient Mesh.
+
+Kubernetes Gateway API provides a superior approach to multi-tenancy compared to legacy Ingress controllers. With Gateway API, a single shared Gateway serves as the centralized entry point, while individual HTTPRoutes in each tenant's namespace define their own routing rules. This eliminates the need to deploy separate Ingress controllers per tenant, reducing infrastructure overhead, simplifying operations, and enabling consistent traffic policies across all tenants through a unified control plane.
 
 ## Key Technologies
 
