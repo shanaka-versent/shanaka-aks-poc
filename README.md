@@ -195,37 +195,6 @@ flowchart TB
 | `app1-route` | sample-apps | `/app1` | sample-app-1:8080 |
 | `app2-route` | sample-apps | `/app2` | sample-app-2:8080 |
 
-### Istio Ambient Mesh Architecture
-
-```mermaid
-flowchart TB
-    subgraph Ambient["ISTIO AMBIENT MESH (Sidecar-less)"]
-        direction TB
-
-        subgraph Pods["Application Pods (1 container each)"]
-            App1["sample-app-1"]
-            App2["sample-app-2"]
-            Health["health-responder"]
-        end
-
-        subgraph ZtunnelDS["ztunnel DaemonSet (1 per node)"]
-            Ztunnel["ztunnel<br/>• Transparent L4 proxy<br/>• mTLS encryption<br/>• Authorization policies"]
-        end
-    end
-
-    App1 <-.->|"Intercepted"| Ztunnel
-    App2 <-.->|"Intercepted"| Ztunnel
-    Health <-.->|"Intercepted"| Ztunnel
-
-    classDef ambient fill:#e8eaf6,stroke:#466bb0,stroke-width:2px,color:#333
-    classDef ztunnel fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#333
-    classDef pods fill:#e8f5e9,stroke:#388e3c,stroke-width:2px,color:#333
-
-    class Ambient ambient
-    class ZtunnelDS ztunnel
-    class Pods pods
-```
-
 ### Request Flow Example: GET /app1
 
 ```mermaid
@@ -411,7 +380,7 @@ When running `01-deploy-terraform.sh`:
 | Fix | Problem | Solution | Key Files |
 |-----|---------|----------|-----------|
 | **#1 HTTPRoute** | Health probes return 404 | Route `/healthz/*` to health-responder | `05-httproutes.yaml`, `02-health-responder.yaml` |
-| **#2 externalTrafficPolicy** | Connection timeouts due to SNAT | Set `externalTrafficPolicy: Local` | `03-deploy-kubernetes.sh`, `04-update-appgw-backend.sh` |
+| **#2 externalTrafficPolicy** | App Gateway → ILB timeouts (SNAT breaks DSR) | Set `externalTrafficPolicy: Local` | `03-deploy-kubernetes.sh`, `04-update-appgw-backend.sh` |
 
 ### Fix #1: HTTPRoute for /healthz (Health Probe Routing)
 
