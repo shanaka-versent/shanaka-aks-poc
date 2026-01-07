@@ -381,10 +381,10 @@ When running `01-deploy-terraform.sh`:
 
 | Fix | Problem | Solution | Key Files |
 |-----|---------|----------|-----------|
-| **#1 HTTPRoute** | Health probes return 404 | Route `/healthz/*` to health-responder | `05-httproutes.yaml`, `02-health-responder.yaml` |
-| **#2 externalTrafficPolicy** | App Gateway → ILB timeouts (SNAT breaks DSR) | Set `externalTrafficPolicy: Local` | `03-deploy-kubernetes.sh`, `04-update-appgw-backend.sh` |
+| **1. HTTPRoute** | Health probes return 404 | Route `/healthz/*` to health-responder | `05-httproutes.yaml`, `02-health-responder.yaml` |
+| **2. externalTrafficPolicy** | App Gateway → ILB timeouts (SNAT breaks DSR) | Set `externalTrafficPolicy: Local` | `03-deploy-kubernetes.sh`, `04-update-appgw-backend.sh` |
 
-### Fix #1: HTTPRoute for /healthz (Health Probe Routing)
+### Fix 1: HTTPRoute for /healthz (Health Probe Routing)
 
 **Problem:** App Gateway health probes to `/healthz/ready` returned 404 because Istio Gateway (Envoy) didn't know how to route health check requests.
 
@@ -452,7 +452,7 @@ spec:
 
 ---
 
-### Fix #2: externalTrafficPolicy: Local (Azure DSR Fix)
+### Fix 2: externalTrafficPolicy: Local (Azure DSR Fix)
 
 > **CRITICAL for Azure ILB + App Gateway Integration:** This fix is **mandatory** when using Azure Application Gateway with an AKS Internal Load Balancer. Without it, all requests will timeout with 502 errors.
 
