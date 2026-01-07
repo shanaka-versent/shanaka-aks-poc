@@ -14,377 +14,300 @@ This POC validates Azure Application Gateway integration with Kubernetes Gateway
 
 ### High-Level Overview
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              INTERNET                                        │
-│                         (Client Request)                                     │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    │ HTTPS:443
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                     AZURE APPLICATION GATEWAY v2                             │
-│  ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────────────────┐ │
-│  │ Frontend IP     │→ │ HTTPS Listener   │→ │ Request Routing Rule        │ │
-│  │ (Public IP)     │  │ (TLS Termination)│  │ (Path-based → Backend Pool) │ │
-│  └─────────────────┘  └──────────────────┘  └─────────────────────────────┘ │
-│                                                         │                    │
-│  ┌─────────────────────────────────────────────────────┐│                    │
-│  │ Backend Pool: aks-gateway-pool                      ││                    │
-│  │ Target: Internal LB IP (10.0.1.x)                   ││                    │
-│  │ Backend Settings: HTTPS:443 (re-encrypt)            ││                    │
-│  │ Health Probe: /healthz/ready                        ││                    │
-│  └─────────────────────────────────────────────────────┘│                    │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    │ HTTPS:443 (to Internal LB)
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           AKS CLUSTER                                        │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │              AZURE INTERNAL LOAD BALANCER (10.0.1.x)                   │ │
-│  │   Service: kudos-gateway-istio (type: LoadBalancer)                    │ │
-│  │   externalTrafficPolicy: Local (required for DSR)                      │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
-│                                    │                                         │
-│                                    │ Routes to Gateway Pod                   │
-│                                    ▼                                         │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │                    ISTIO GATEWAY POD (istio-ingress namespace)         │ │
-│  │   ┌──────────────────────────────────────────────────────────────────┐ │ │
-│  │   │ Gateway Resource: kudos-gateway                                   │ │ │
-│  │   │ Listeners: HTTPS:443                                               │ │ │
-│  │   │ TLS Secret: istio-gateway-tls (TLS termination)                   │ │ │
-│  │   └──────────────────────────────────────────────────────────────────┘ │ │
-│  │                                    │                                    │ │
-│  │                                    │ HTTPRoute Matching                 │ │
-│  │                                    ▼                                    │ │
-│  │   ┌──────────────────────────────────────────────────────────────────┐ │ │
-│  │   │                      HTTPRoutes                                   │ │ │
-│  │   │  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────────┐ │ │ │
-│  │   │  │ health-route    │ │ app1-route      │ │ app2-route          │ │ │ │
-│  │   │  │ /healthz/*      │ │ /app1           │ │ /app2               │ │ │ │
-│  │   │  │ → gateway-health│ │ → sample-apps   │ │ → sample-apps       │ │ │ │
-│  │   │  └─────────────────┘ └─────────────────┘ └─────────────────────┘ │ │ │
-│  │   └──────────────────────────────────────────────────────────────────┘ │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
-│                                    │                                         │
-│              ┌─────────────────────┼─────────────────────┐                   │
-│              ▼                     ▼                     ▼                   │
-│  ┌─────────────────────┐ ┌─────────────────────┐ ┌─────────────────────┐    │
-│  │ gateway-health NS   │ │   sample-apps NS    │ │   sample-apps NS    │    │
-│  │ ┌─────────────────┐ │ │ ┌─────────────────┐ │ │ ┌─────────────────┐ │    │
-│  │ │ health-responder│ │ │ │ sample-app-1    │ │ │ │ sample-app-2    │ │    │
-│  │ │ Service:8080    │ │ │ │ Service:8080    │ │ │ │ Service:8080    │ │    │
-│  │ │ Pod (1 container│ │ │ │ Pod (1 container│ │ │ │ Pod (1 container│ │    │
-│  │ │  - no sidecar)  │ │ │ │  - no sidecar)  │ │ │ │  - no sidecar)  │ │    │
-│  │ └─────────────────┘ │ │ └─────────────────┘ │ │ └─────────────────┘ │    │
-│  └─────────────────────┘ └─────────────────────┘ └─────────────────────┘    │
-│                                                                              │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │                    ISTIO AMBIENT MESH (istio-system namespace)         │ │
-│  │   ┌──────────────────────────────────────────────────────────────────┐ │ │
-│  │   │ ztunnel (DaemonSet) - Runs on each node                          │ │ │
-│  │   │ • Intercepts pod traffic transparently (no sidecars needed)      │ │ │
-│  │   │ • Provides mTLS between pods                                     │ │ │
-│  │   │ • L4 authorization policies                                      │ │ │
-│  │   └──────────────────────────────────────────────────────────────────┘ │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Internet["🌐 INTERNET"]
+        Client["Client Request"]
+    end
+
+    subgraph AppGW["AZURE APPLICATION GATEWAY v2"]
+        Frontend["Frontend IP<br/>(Public IP)"]
+        Listener["HTTPS Listener<br/>(TLS Termination #1)"]
+        Rule["Request Routing Rule<br/>(Path-based)"]
+        Backend["Backend Pool<br/>aks-gateway-pool<br/>Target: 10.0.1.x<br/>Protocol: HTTPS:443"]
+    end
+
+    subgraph AKS["AKS CLUSTER"]
+        subgraph ILB["Azure Internal Load Balancer"]
+            LBService["kudos-gateway-istio<br/>externalTrafficPolicy: Local"]
+        end
+
+        subgraph IstioGW["ISTIO GATEWAY POD<br/>(istio-ingress namespace)"]
+            Gateway["Gateway: kudos-gateway<br/>Listener: HTTPS:443<br/>TLS Secret: istio-gateway-tls<br/>(TLS Termination #2)"]
+            Routes["HTTPRoutes"]
+        end
+
+        subgraph Apps["Backend Services"]
+            Health["health-responder<br/>/healthz/*<br/>gateway-health ns"]
+            App1["sample-app-1<br/>/app1<br/>sample-apps ns"]
+            App2["sample-app-2<br/>/app2<br/>sample-apps ns"]
+        end
+
+        subgraph Ambient["ISTIO AMBIENT MESH<br/>(istio-system namespace)"]
+            Ztunnel["ztunnel (DaemonSet)<br/>• Transparent proxy<br/>• mTLS between pods<br/>• L4 policies"]
+        end
+    end
+
+    Client -->|"HTTPS:443"| Frontend
+    Frontend --> Listener
+    Listener --> Rule
+    Rule --> Backend
+    Backend -->|"HTTPS:443"| LBService
+    LBService --> Gateway
+    Gateway --> Routes
+    Routes --> Health
+    Routes --> App1
+    Routes --> App2
+    Ztunnel -.->|"mTLS"| Apps
+
+    style AppGW fill:#0078D4,color:#fff
+    style AKS fill:#326CE5,color:#fff
+    style IstioGW fill:#466BB0,color:#fff
+    style Ambient fill:#4B5563,color:#fff
 ```
 
 ### End-to-End TLS Flow (Detailed)
 
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client
+    participant AppGW as App Gateway<br/>(TLS Termination #1)
+    participant IstioGW as Istio Gateway<br/>(TLS Termination #2)
+    participant Pod as Backend Pod
+
+    Client->>+AppGW: HTTPS Request (TLS 1.2/1.3)
+    Note over AppGW: Decrypt with appgw.pfx<br/>CN=kudos-poc.local
+
+    AppGW->>+IstioGW: HTTPS (re-encrypted)<br/>Host: kudos-gateway.istio-ingress.svc.cluster.local
+    Note over IstioGW: Decrypt with istio-gw.crt<br/>CN=kudos-gateway.istio-ingress.svc.cluster.local
+
+    IstioGW->>+Pod: HTTP (plain)<br/>via ClusterIP:8080
+    Pod-->>-IstioGW: Response
+    IstioGW-->>-AppGW: HTTPS Response
+    AppGW-->>-Client: HTTPS Response
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                           TLS TERMINATION POINTS                              │
-└──────────────────────────────────────────────────────────────────────────────┘
 
-  Client                App Gateway              Istio Gateway           Backend Pod
-    │                       │                         │                      │
-    │   HTTPS Request       │                         │                      │
-    │   (TLS 1.2/1.3)       │                         │                      │
-    │──────────────────────►│                         │                      │
-    │                       │                         │                      │
-    │                   ┌───┴───┐                     │                      │
-    │                   │ TLS   │                     │                      │
-    │                   │TERMIN.│                     │                      │
-    │                   │ #1    │                     │                      │
-    │                   └───┬───┘                     │                      │
-    │                       │                         │                      │
-    │                       │   HTTPS (re-encrypt)    │                      │
-    │                       │   Cert: appgw.pfx       │                      │
-    │                       │──────────────────────►  │                      │
-    │                       │                         │                      │
-    │                       │                     ┌───┴───┐                  │
-    │                       │                     │ TLS   │                  │
-    │                       │                     │TERMIN.│                  │
-    │                       │                     │ #2    │                  │
-    │                       │                     └───┬───┘                  │
-    │                       │                         │                      │
-    │                       │                         │   HTTP (plain)       │
-    │                       │                         │   via ClusterIP      │
-    │                       │                         │─────────────────────►│
-    │                       │                         │                      │
-    │                       │                         │◄─────────────────────│
-    │                       │◄────────────────────────│   Response           │
-    │◄──────────────────────│                         │                      │
-    │                       │                         │                      │
+#### Certificate Chain
 
-Certificate Chain:
-├── TLS Termination #1 (App Gateway)
-│   ├── Certificate: appgw.pfx (CN=kudos-poc.local)
-│   ├── Signed by: KUDOS-POC-CA
-│   └── Purpose: Frontend HTTPS listener
-│
-└── TLS Termination #2 (Istio Gateway)
-    ├── Certificate: istio-gw.crt (CN=kudos-gateway.istio-ingress.svc.cluster.local)
-    ├── Signed by: KUDOS-POC-CA
-    ├── K8s Secret: istio-gateway-tls (namespace: istio-ingress)
-    └── Purpose: Backend TLS from App Gateway
+| TLS Termination | Certificate | CN | Signed By | Purpose |
+|-----------------|-------------|-----|-----------|---------|
+| **#1 App Gateway** | `appgw.pfx` | kudos-poc.local | KUDOS-POC-CA | Frontend HTTPS listener |
+| **#2 Istio Gateway** | `istio-gw.crt` | kudos-gateway.istio-ingress.svc.cluster.local | KUDOS-POC-CA | Backend TLS from App Gateway |
 
-App Gateway Backend Settings:
-├── Protocol: HTTPS
-├── Port: 443
-├── Host Header: kudos-gateway.istio-ingress.svc.cluster.local
-├── Trusted Root CA: ca.crt (KUDOS-POC-CA)
-└── Health Probe: HTTPS GET /healthz/ready
-```
+#### App Gateway Backend Settings
+
+| Setting | Value |
+|---------|-------|
+| Protocol | HTTPS |
+| Port | 443 |
+| Host Header | `kudos-gateway.istio-ingress.svc.cluster.local` |
+| Trusted Root CA | `ca.crt` (KUDOS-POC-CA) |
+| Health Probe | HTTPS GET `/healthz/ready` |
 
 ### Kubernetes Gateway API Components
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                        GATEWAY API RESOURCES                                  │
-└──────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph GW["Gateway: kudos-gateway<br/>(namespace: istio-ingress)"]
+        direction TB
+        GWClass["GatewayClass: istio"]
+        Listener["Listener: https<br/>Port: 443 | Protocol: HTTPS<br/>TLS Mode: Terminate<br/>Certificate: istio-gateway-tls"]
+    end
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ Gateway: kudos-gateway (namespace: istio-ingress)                           │
-│ GatewayClass: istio                                                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Listener:                                                                    │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │ Name: https                                                          │   │
-│   │ Port: 443                                                            │   │
-│   │ Protocol: HTTPS                                                      │   │
-│   │ TLS Mode: Terminate                                                  │   │
-│   │ Certificate: istio-gateway-tls (Secret)                              │   │
-│   │ AllowedRoutes: All namespaces                                        │   │
-│   └─────────────────────────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Service Created by Istio:                                                   │
-│   Name: kudos-gateway-istio                                                 │
-│   Type: LoadBalancer                                                        │
-│   Annotations: service.beta.kubernetes.io/azure-load-balancer-internal=true │
-│   External IP: 10.0.1.x (Azure Internal LB)                                 │
-│   Ports: 443/TCP                                                            │
-│   externalTrafficPolicy: Local                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                     │
-                                     │ parentRefs
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              HTTPRoutes                                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  HTTPRoute: health-route (namespace: gateway-health)                         │
-│  ├── parentRefs: kudos-gateway (istio-ingress)                              │
-│  ├── matches:                                                                │
-│  │   └── path: /healthz/* (PathPrefix)                                      │
-│  └── backendRefs:                                                            │
-│      └── Service: health-responder:8080                                      │
-│                                                                              │
-│  HTTPRoute: app1-route (namespace: sample-apps)                              │
-│  ├── parentRefs: kudos-gateway (istio-ingress)                              │
-│  ├── matches:                                                                │
-│  │   └── path: /app1 (PathPrefix)                                           │
-│  └── backendRefs:                                                            │
-│      └── Service: sample-app-1:8080                                          │
-│                                                                              │
-│  HTTPRoute: app2-route (namespace: sample-apps)                              │
-│  ├── parentRefs: kudos-gateway (istio-ingress)                              │
-│  ├── matches:                                                                │
-│  │   └── path: /app2 (PathPrefix)                                           │
-│  └── backendRefs:                                                            │
-│      └── Service: sample-app-2:8080                                          │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                     │
-                                     │ ReferenceGrants allow cross-namespace
-                                     ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           ReferenceGrants                                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ ReferenceGrant: allow-istio-ingress-to-gateway-health                        │
-│ ├── From: HTTPRoute in istio-ingress namespace                              │
-│ └── To: Service in gateway-health namespace                                  │
-│                                                                              │
-│ ReferenceGrant: allow-istio-ingress-to-sample-apps                           │
-│ ├── From: HTTPRoute in istio-ingress namespace                              │
-│ └── To: Service in sample-apps namespace                                     │
-└─────────────────────────────────────────────────────────────────────────────┘
+    subgraph SVC["Service Created by Istio"]
+        Service["kudos-gateway-istio<br/>Type: LoadBalancer<br/>IP: 10.0.1.x (Internal)<br/>Port: 443/TCP<br/>⚠️ externalTrafficPolicy: Local"]
+    end
+
+    subgraph Routes["HTTPRoutes"]
+        HR1["health-route<br/>namespace: gateway-health<br/>path: /healthz/*"]
+        HR2["app1-route<br/>namespace: sample-apps<br/>path: /app1"]
+        HR3["app2-route<br/>namespace: sample-apps<br/>path: /app2"]
+    end
+
+    subgraph Backends["Backend Services"]
+        BE1["health-responder:8080"]
+        BE2["sample-app-1:8080"]
+        BE3["sample-app-2:8080"]
+    end
+
+    subgraph Grants["ReferenceGrants"]
+        RG1["allow-istio-ingress-to-gateway-health<br/>From: istio-ingress → To: gateway-health"]
+        RG2["allow-istio-ingress-to-sample-apps<br/>From: istio-ingress → To: sample-apps"]
+    end
+
+    GWClass --> Listener
+    Listener --> SVC
+    SVC -->|"parentRefs"| Routes
+    HR1 --> BE1
+    HR2 --> BE2
+    HR3 --> BE3
+    Routes -.->|"requires"| Grants
+
+    style GW fill:#466BB0,color:#fff
+    style SVC fill:#0078D4,color:#fff
+    style Routes fill:#2E7D32,color:#fff
+    style Grants fill:#7B1FA2,color:#fff
 ```
+
+#### Gateway Listener Configuration
+
+| Property | Value |
+|----------|-------|
+| Name | `https` |
+| Port | `443` |
+| Protocol | `HTTPS` |
+| TLS Mode | `Terminate` |
+| Certificate Secret | `istio-gateway-tls` |
+| Allowed Routes | All namespaces |
+
+#### HTTPRoutes Summary
+
+| Route | Namespace | Path | Backend Service |
+|-------|-----------|------|-----------------|
+| `health-route` | gateway-health | `/healthz/*` | health-responder:8080 |
+| `app1-route` | sample-apps | `/app1` | sample-app-1:8080 |
+| `app2-route` | sample-apps | `/app2` | sample-app-2:8080 |
 
 ### Istio Ambient Mesh Architecture
 
+```mermaid
+flowchart TB
+    subgraph Ambient["ISTIO AMBIENT MESH (Sidecar-less)"]
+        direction TB
+
+        subgraph Pods["Application Pods (1 container each)"]
+            App1["sample-app-1"]
+            App2["sample-app-2"]
+            Health["health-responder"]
+        end
+
+        subgraph ZtunnelDS["ztunnel DaemonSet (1 per node)"]
+            Ztunnel["ztunnel<br/>• Transparent L4 proxy<br/>• mTLS encryption<br/>• Authorization policies"]
+        end
+    end
+
+    App1 <-.->|"Intercepted"| Ztunnel
+    App2 <-.->|"Intercepted"| Ztunnel
+    Health <-.->|"Intercepted"| Ztunnel
+
+    style Ambient fill:#466BB0,color:#fff
+    style Ztunnel fill:#FF9800,color:#fff
+    style Pods fill:#4CAF50,color:#fff
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                          ISTIO AMBIENT MESH                                   │
-│                      (Sidecar-less Service Mesh)                              │
-└──────────────────────────────────────────────────────────────────────────────┘
 
-Traditional Sidecar Mode:              Ambient Mode (This POC):
-┌─────────────────────────┐           ┌─────────────────────────┐
-│ Pod                     │           │ Pod                     │
-│ ┌─────────┐ ┌─────────┐ │           │ ┌─────────────────────┐ │
-│ │   App   │ │ Sidecar │ │           │ │        App          │ │
-│ │Container│ │ (envoy) │ │           │ │    (1 container)    │ │
-│ └─────────┘ └─────────┘ │           │ └─────────────────────┘ │
-│     2 containers        │           │     1 container         │
-└─────────────────────────┘           └─────────────────────────┘
-                                                  │
-                                      Traffic intercepted by ztunnel
-                                                  ▼
-                                      ┌─────────────────────────┐
-                                      │      ztunnel Pod        │
-                                      │   (DaemonSet - 1/node)  │
-                                      │  • Transparent proxy    │
-                                      │  • mTLS encryption      │
-                                      │  • L4 policies          │
-                                      └─────────────────────────┘
+**Key Benefits:**
+- No sidecar containers (1 container per pod instead of 2)
+- Lower resource overhead
+- Simplified deployment
+- Transparent traffic interception via ztunnel
 
-Namespace Configuration:
-┌─────────────────────────────────────────────────────────────────┐
-│ Namespaces with Ambient Mesh enabled:                           │
-│                                                                  │
-│  sample-apps:                                                    │
-│    labels:                                                       │
-│      istio.io/dataplane-mode: ambient   ← Enables ztunnel       │
-│                                                                  │
-│  gateway-health:                                                 │
-│    labels:                                                       │
-│      istio.io/dataplane-mode: ambient   ← Enables ztunnel       │
-│                                                                  │
-│  istio-ingress:                                                  │
-│    (No ambient label - Gateway pod handles its own traffic)      │
-└─────────────────────────────────────────────────────────────────┘
+#### Namespace Configuration
 
-ztunnel Traffic Flow:
-┌─────────────────────────────────────────────────────────────────┐
-│                         Node 1                                   │
-│  ┌─────────────┐     ┌─────────────┐     ┌─────────────────┐    │
-│  │ sample-app-1│ ──► │   ztunnel   │ ──► │ sample-app-2    │    │
-│  │    Pod      │     │  (DaemonSet)│     │    Pod          │    │
-│  └─────────────┘     │             │     └─────────────────┘    │
-│                      │   mTLS      │                             │
-│                      │ encryption  │                             │
-│                      └─────────────┘                             │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Namespace | Ambient Mesh | Label |
+|-----------|--------------|-------|
+| `sample-apps` | ✅ Enabled | `istio.io/dataplane-mode: ambient` |
+| `gateway-health` | ✅ Enabled | `istio.io/dataplane-mode: ambient` |
+| `istio-ingress` | ❌ Not enabled | Gateway pod handles its own traffic |
 
 ### Request Flow Example: GET /app1
 
-```
-Step-by-step request flow for: curl -k https://68.218.110.49/app1
+```mermaid
+flowchart TB
+    subgraph Step1["1️⃣ Client Request"]
+        Client["curl -k https://68.218.110.49/app1"]
+    end
 
-1. DNS Resolution
-   └── 68.218.110.49 (Azure App Gateway Public IP)
+    subgraph Step2["2️⃣ App Gateway Frontend"]
+        AGW["Public IP: 68.218.110.49<br/>Listener: https-listener:443<br/>🔐 TLS Termination #1"]
+    end
 
-2. App Gateway Frontend
-   ├── Public IP: 68.218.110.49
-   ├── Listener: https-listener (port 443)
-   └── SSL Certificate: appgw.pfx
-       └── TLS Termination #1 (decrypts client TLS)
+    subgraph Step3["3️⃣ App Gateway Backend"]
+        Backend["Backend Pool: aks-gateway-pool<br/>Target: 10.0.1.x (Internal LB)<br/>Protocol: HTTPS:443<br/>Host Header: kudos-gateway.istio-ingress.svc.cluster.local"]
+    end
 
-3. App Gateway Routing
-   ├── Request Routing Rule: https-rule
-   ├── Path: /* (matches all)
-   └── Backend Pool: aks-gateway-pool
+    subgraph Step4["4️⃣ Azure Internal LB"]
+        ILB["IP: 10.0.1.x<br/>Service: kudos-gateway-istio<br/>⚠️ externalTrafficPolicy: Local"]
+    end
 
-4. App Gateway Backend
-   ├── Backend Pool IP: 10.0.1.x (Internal LB)
-   ├── Backend HTTP Settings: https-settings
-   │   ├── Protocol: HTTPS (port 443)
-   │   ├── Host Header: kudos-gateway.istio-ingress.svc.cluster.local
-   │   └── Trusted Root CA: ca.crt
-   └── Re-encrypts request → TLS to backend
+    subgraph Step5["5️⃣ Istio Gateway Pod"]
+        Gateway["🔐 TLS Termination #2<br/>Gateway: kudos-gateway<br/>HTTPRoute matching"]
+    end
 
-5. Azure Internal Load Balancer
-   ├── IP: 10.0.1.x
-   ├── Frontend Port: 443
-   └── Routes to: kudos-gateway-istio Service endpoints
+    subgraph Step6["6️⃣ HTTPRoute"]
+        Route["Path: /app1 → app1-route<br/>Backend: sample-app-1:8080"]
+    end
 
-6. Kubernetes Service
-   ├── Service: kudos-gateway-istio
-   ├── Type: LoadBalancer (Internal)
-   ├── externalTrafficPolicy: Local
-   └── Endpoints: Istio Gateway Pod IPs
+    subgraph Step7["7️⃣ Backend Pod"]
+        Pod["sample-app-1 (nginx)<br/>Port: 8080<br/>Returns: Hello from App 1!"]
+    end
 
-7. Istio Gateway Pod
-   ├── Receives HTTPS on port 443
-   ├── TLS Termination #2 (using istio-gateway-tls secret)
-   ├── Gateway: kudos-gateway
-   └── Matches request to HTTPRoute
+    Client -->|"HTTPS"| AGW
+    AGW -->|"Re-encrypt HTTPS"| Backend
+    Backend --> ILB
+    ILB --> Gateway
+    Gateway --> Route
+    Route -->|"HTTP"| Pod
 
-8. HTTPRoute Matching
-   ├── Path: /app1
-   ├── Matches: app1-route (PathPrefix /app1)
-   └── Backend: sample-app-1.sample-apps.svc:8080
-
-9. Service Routing
-   ├── Service: sample-app-1 (ClusterIP)
-   ├── Port: 8080
-   └── Endpoints: sample-app-1 Pod IP
-
-10. Backend Pod
-    ├── Pod: sample-app-1-xxxxx
-    ├── Container: sample-app-1 (nginx)
-    ├── Port: 8080
-    └── Returns: "Hello from App 1!"
-
-Response follows reverse path back to client.
+    style Step1 fill:#1976D2,color:#fff
+    style Step2 fill:#0078D4,color:#fff
+    style Step3 fill:#0078D4,color:#fff
+    style Step4 fill:#7B1FA2,color:#fff
+    style Step5 fill:#466BB0,color:#fff
+    style Step6 fill:#2E7D32,color:#fff
+    style Step7 fill:#4CAF50,color:#fff
 ```
 
 ### Network Diagram
 
+```mermaid
+flowchart TB
+    subgraph Azure["☁️ AZURE"]
+        subgraph VNet["VNet: vnet-kudos-poc (10.0.0.0/16)"]
+            subgraph AppGWSubnet["Subnet: appgw-subnet (10.0.0.0/24)"]
+                AppGW["🛡️ Application Gateway<br/>appgw-kudos-poc<br/>Public IP: 68.218.110.49<br/>Private IP: 10.0.0.x<br/>NSG: Allow 80, 443"]
+            end
+
+            subgraph AKSSubnet["Subnet: aks-subnet (10.0.1.0/24)"]
+                subgraph AKS["🚀 AKS Cluster: aks-kudos-poc"]
+                    ILB["Internal LB: 10.0.1.x"]
+
+                    subgraph Pods["Pods"]
+                        GWPod["istio-ingress/<br/>kudos-gateway-istio"]
+                        HealthPod["gateway-health/<br/>health-responder"]
+                        App1Pod["sample-apps/<br/>sample-app-1"]
+                        App2Pod["sample-apps/<br/>sample-app-2"]
+                        ZtPod["istio-system/<br/>ztunnel (per node)"]
+                    end
+                end
+            end
+        end
+    end
+
+    Internet["🌐 Internet"] -->|"HTTPS:443"| AppGW
+    AppGW -->|"HTTPS:443"| ILB
+    ILB --> GWPod
+    GWPod --> HealthPod
+    GWPod --> App1Pod
+    GWPod --> App2Pod
+    ZtPod -.->|"mTLS"| Pods
+
+    style Azure fill:#0078D4,color:#fff
+    style VNet fill:#1565C0,color:#fff
+    style AppGWSubnet fill:#1976D2,color:#fff
+    style AKSSubnet fill:#1976D2,color:#fff
+    style AKS fill:#326CE5,color:#fff
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           AZURE NETWORKING                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  VNet: vnet-kudos-poc (10.0.0.0/16)                                         │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │                                                                      │    │
-│  │  Subnet: appgw-subnet (10.0.0.0/24)                                 │    │
-│  │  ┌───────────────────────────────────────────────────────────────┐  │    │
-│  │  │  Application Gateway: appgw-kudos-poc                         │  │    │
-│  │  │  ├── Public IP: 68.218.110.49                                 │  │    │
-│  │  │  ├── Private IP: 10.0.0.x                                     │  │    │
-│  │  │  └── NSG: Allows 80, 443 inbound from Internet                │  │    │
-│  │  └───────────────────────────────────────────────────────────────┘  │    │
-│  │                              │                                       │    │
-│  │                              │ Backend traffic (HTTPS:443)           │    │
-│  │                              ▼                                       │    │
-│  │  Subnet: aks-subnet (10.0.1.0/24)                                   │    │
-│  │  ┌───────────────────────────────────────────────────────────────┐  │    │
-│  │  │  AKS Cluster: aks-kudos-poc                                   │  │    │
-│  │  │  ├── Internal LB: 10.0.1.x (kudos-gateway-istio)             │  │    │
-│  │  │  ├── Node Pool: System nodes                                  │  │    │
-│  │  │  ├── CNI: Azure CNI                                           │  │    │
-│  │  │  └── Pod CIDR: From AKS subnet (10.0.1.x)                     │  │    │
-│  │  │                                                                │  │    │
-│  │  │  Pods:                                                         │  │    │
-│  │  │  ├── istio-ingress/kudos-gateway-istio-xxxxx (Gateway)        │  │    │
-│  │  │  ├── gateway-health/health-responder-xxxxx                    │  │    │
-│  │  │  ├── sample-apps/sample-app-1-xxxxx                           │  │    │
-│  │  │  ├── sample-apps/sample-app-2-xxxxx                           │  │    │
-│  │  │  └── istio-system/ztunnel-xxxxx (per node)                    │  │    │
-│  │  └───────────────────────────────────────────────────────────────┘  │    │
-│  │                                                                      │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+
+#### Network Configuration
+
+| Resource | CIDR / IP |
+|----------|-----------|
+| VNet | `10.0.0.0/16` |
+| App Gateway Subnet | `10.0.0.0/24` |
+| AKS Subnet | `10.0.1.0/24` |
+| Internal Load Balancer | `10.0.1.x` |
+| App Gateway Public IP | `68.218.110.49` |
 
 ## Quick Start
 
@@ -507,7 +430,7 @@ When running `01-deploy-terraform.sh`:
 
 ## Critical Configuration Fixes
 
-This POC required two critical fixes for Azure Application Gateway + AKS Internal Load Balancer integration:
+> ⚠️ **Important:** This POC required two critical fixes for Azure Application Gateway + AKS Internal Load Balancer integration. Without these fixes, the backend will show as "Unhealthy" and requests will fail with 502 errors.
 
 ### Fix #1: HTTPRoute for /healthz (Health Probe Routing)
 
@@ -515,31 +438,27 @@ This POC required two critical fixes for Azure Application Gateway + AKS Interna
 
 **Solution:** Create a dedicated HTTPRoute that routes `/healthz/*` to a health-responder service.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    WHY HTTPRoute FOR HEALTH PROBES?                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  App Gateway                  Istio Gateway                                  │
-│  Health Probe                 (Envoy Proxy)                                  │
-│       │                            │                                         │
-│       │  GET /healthz/ready        │                                         │
-│       │───────────────────────────►│                                         │
-│       │                            │                                         │
-│       │                    ┌───────┴───────┐                                │
-│       │                    │ HTTPRoute     │                                │
-│       │                    │ Matching?     │                                │
-│       │                    └───────┬───────┘                                │
-│       │                            │                                         │
-│       │              ┌─────────────┴─────────────┐                          │
-│       │              │                           │                          │
-│       │         NO HTTPRoute              WITH HTTPRoute                    │
-│       │              │                           │                          │
-│       │              ▼                           ▼                          │
-│       │         404 Not Found              200 OK                           │
-│       │         (Backend Unhealthy)        (Backend Healthy)                │
-│       │                                                                      │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph AppGW["App Gateway Health Probe"]
+        Probe["GET /healthz/ready"]
+    end
+
+    subgraph IstioGW["Istio Gateway (Envoy)"]
+        Match{"HTTPRoute<br/>Matching?"}
+    end
+
+    subgraph Results["Result"]
+        NoRoute["❌ NO HTTPRoute<br/>404 Not Found<br/>Backend Unhealthy"]
+        WithRoute["✅ WITH HTTPRoute<br/>200 OK<br/>Backend Healthy"]
+    end
+
+    Probe --> Match
+    Match -->|"No match"| NoRoute
+    Match -->|"Match found"| WithRoute
+
+    style NoRoute fill:#EF5350,color:#fff
+    style WithRoute fill:#4CAF50,color:#fff
 ```
 
 **Files containing this fix:**
@@ -576,46 +495,34 @@ spec:
 
 ### Fix #2: externalTrafficPolicy: Local (Azure DSR Fix)
 
+> 🔴 **CRITICAL for Azure ILB + App Gateway Integration:** This fix is **mandatory** when using Azure Application Gateway with an AKS Internal Load Balancer. Without it, all requests will timeout with 502 errors.
+
 **Problem:** App Gateway backend health showed "Unhealthy" with connection timeouts, even though the Internal LB IP was correct and pods were running.
 
-**Solution:** Set `externalTrafficPolicy: Local` on the Istio Gateway service to prevent kube-proxy SNAT from breaking Azure's DSR (Direct Server Return) traffic path.
+**Root Cause:** Azure App Gateway uses DSR (Direct Server Return) with Floating IP. When `externalTrafficPolicy: Cluster` (default), kube-proxy performs SNAT which changes the source IP, causing response packets to be sent to the wrong destination.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│              WHY externalTrafficPolicy: Local IS REQUIRED                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  Azure App Gateway uses DSR (Direct Server Return) with Floating IP:        │
-│                                                                              │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  DEFAULT: externalTrafficPolicy: Cluster (BROKEN)                    │   │
-│  │                                                                       │   │
-│  │  App Gateway ──► Internal LB ──► kube-proxy ──► Pod                  │   │
-│  │      │                              │                                 │   │
-│  │      │                         SNAT happens                           │   │
-│  │      │                         (changes source IP)                    │   │
-│  │      │                              │                                 │   │
-│  │      │◄─────────────────────────────┘                                │   │
-│  │      │  Response sent to wrong IP!                                    │   │
-│  │      │  Connection timeout / 502 error                                │   │
-│  │                                                                       │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  FIX: externalTrafficPolicy: Local (WORKING)                         │   │
-│  │                                                                       │   │
-│  │  App Gateway ──► Internal LB ──► Pod (direct, no SNAT)               │   │
-│  │      │                              │                                 │   │
-│  │      │                         No SNAT                                │   │
-│  │      │                         (preserves source IP)                  │   │
-│  │      │                              │                                 │   │
-│  │      │◄─────────────────────────────┘                                │   │
-│  │      │  Response returns correctly via DSR                            │   │
-│  │      │  Connection successful!                                        │   │
-│  │                                                                       │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
+**Solution:** Set `externalTrafficPolicy: Local` on the Istio Gateway service to prevent SNAT.
+
+```mermaid
+flowchart TB
+    subgraph Broken["❌ DEFAULT: externalTrafficPolicy: Cluster (BROKEN)"]
+        direction LR
+        AGW1["App Gateway"] -->|"Request"| ILB1["Internal LB"]
+        ILB1 -->|"SNAT happens"| KP1["kube-proxy"]
+        KP1 --> Pod1["Pod"]
+        Pod1 -->|"Response to wrong IP!"| X1["❌ Timeout / 502"]
+    end
+
+    subgraph Working["✅ FIX: externalTrafficPolicy: Local (WORKING)"]
+        direction LR
+        AGW2["App Gateway"] -->|"Request"| ILB2["Internal LB"]
+        ILB2 -->|"No SNAT<br/>Direct routing"| Pod2["Pod"]
+        Pod2 -->|"Response via DSR"| AGW2
+    end
+
+    style Broken fill:#FFCDD2,color:#000
+    style Working fill:#C8E6C9,color:#000
+    style X1 fill:#EF5350,color:#fff
 ```
 
 **Files containing this fix:**
@@ -773,3 +680,10 @@ cd terraform && terraform output appgw_public_ip
 ```
 
 **Note:** HTTP requests to port 80 are automatically redirected to HTTPS (301).
+
+---
+
+## Author
+
+**Shanaka Jayasundera**
+Email: shanakaj@gmail.com

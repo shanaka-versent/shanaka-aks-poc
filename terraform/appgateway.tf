@@ -1,3 +1,6 @@
+# KUDOS POC - Application Gateway Configuration
+# @author Shanaka Jayasundera - shanakaj@gmail.com
+
 # Public IP for App Gateway
 resource "azurerm_public_ip" "appgw" {
   name                = "pip-appgw-${local.name_prefix}"

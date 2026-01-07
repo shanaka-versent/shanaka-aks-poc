@@ -1,3 +1,6 @@
+# KUDOS POC - Main Terraform Configuration
+# @author Shanaka Jayasundera - shanakaj@gmail.com
+
 locals {
   name_prefix = "${var.project_name}-${var.environment}"
 }

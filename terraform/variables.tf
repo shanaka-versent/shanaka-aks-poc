@@ -1,3 +1,6 @@
+# KUDOS POC - Terraform Variables
+# @author Shanaka Jayasundera - shanakaj@gmail.com
+
 # Azure Subscription
 variable "subscription_id" {
   description = "Azure Subscription ID (optional - uses az CLI default if not set)"

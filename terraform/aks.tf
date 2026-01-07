@@ -1,3 +1,6 @@
+# KUDOS POC - AKS Cluster Configuration
+# @author Shanaka Jayasundera - shanakaj@gmail.com
+
 # AKS Cluster
 resource "azurerm_kubernetes_cluster" "main" {
   name                = "aks-${local.name_prefix}"

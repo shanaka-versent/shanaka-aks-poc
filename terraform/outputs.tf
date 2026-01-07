@@ -1,3 +1,6 @@
+# KUDOS POC - Terraform Outputs
+# @author Shanaka Jayasundera - shanakaj@gmail.com
+
 output "resource_group_name" {
   description = "Resource Group name"
   value       = azurerm_resource_group.main.name

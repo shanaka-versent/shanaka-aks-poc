@@ -1,5 +1,6 @@
 #!/bin/bash
 # Update Application Gateway backend pool with Gateway Internal LB IP
+# @author Shanaka Jayasundera - shanakaj@gmail.com
 
 set -e
 

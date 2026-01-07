@@ -1,6 +1,7 @@
 #!/bin/bash
 # Generate TLS certificates for end-to-end TLS
 # This creates self-signed certificates for POC purposes
+# @author Shanaka Jayasundera - shanakaj@gmail.com
 
 set -e
 

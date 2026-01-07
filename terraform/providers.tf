@@ -1,3 +1,6 @@
+# KUDOS POC - Terraform Providers
+# @author Shanaka Jayasundera - shanakaj@gmail.com
+
 terraform {
   required_version = ">= 1.5.0"
 

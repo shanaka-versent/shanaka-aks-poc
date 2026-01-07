@@ -1,3 +1,6 @@
+# KUDOS POC - Network Configuration
+# @author Shanaka Jayasundera - shanakaj@gmail.com
+
 # Virtual Network
 resource "azurerm_virtual_network" "main" {
   name                = "vnet-${local.name_prefix}"

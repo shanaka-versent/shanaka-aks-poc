@@ -1,6 +1,7 @@
 #!/bin/bash
 # Comprehensive POC validation script
 # This script performs all validation checks for the KUDOS POC
+# @author Shanaka Jayasundera - shanakaj@gmail.com
 
 set -e
 

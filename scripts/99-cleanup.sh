@@ -1,5 +1,6 @@
 #!/bin/bash
 # Clean up all POC resources
+# @author Shanaka Jayasundera - shanakaj@gmail.com
 
 set -e
 

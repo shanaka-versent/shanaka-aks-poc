@@ -1,6 +1,7 @@
 #!/bin/bash
 # Create Kubernetes TLS secrets for End-to-End TLS
 # This script creates the TLS secret for the Istio Gateway
+# @author Shanaka Jayasundera - shanakaj@gmail.com
 
 set -e
 

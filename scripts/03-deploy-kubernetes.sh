@@ -1,5 +1,6 @@
 #!/bin/bash
 # Deploy Kubernetes resources (Gateway, Apps, HTTPRoutes)
+# @author Shanaka Jayasundera - shanakaj@gmail.com
 
 set -e
 

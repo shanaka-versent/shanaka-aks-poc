@@ -1,4 +1,5 @@
-# Kubernetes Gateway API - Gateway Resource
+# KUDOS POC - Kubernetes Gateway API - Gateway Resource
+# @author Shanaka Jayasundera - shanakaj@gmail.com
 # This creates the Istio ingress gateway with an Internal Load Balancer
 #
 # IMPORTANT: This uses Gateway API (gateway.networking.k8s.io), NOT Ingress

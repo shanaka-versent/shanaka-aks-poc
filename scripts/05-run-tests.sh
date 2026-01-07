@@ -1,5 +1,6 @@
 #!/bin/bash
 # Run all validation tests
+# @author Shanaka Jayasundera - shanakaj@gmail.com
 
 set -e
 

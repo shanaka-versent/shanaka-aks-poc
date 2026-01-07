@@ -1,5 +1,6 @@
 #!/bin/bash
 # Deploy Azure infrastructure with Terraform
+# @author Shanaka Jayasundera - shanakaj@gmail.com
 
 set -e
 

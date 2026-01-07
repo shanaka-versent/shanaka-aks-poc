@@ -1,4 +1,5 @@
-# Namespaces with Istio Ambient Mesh enabled
+# KUDOS POC - Namespaces with Istio Ambient Mesh enabled
+# @author Shanaka Jayasundera - shanakaj@gmail.com
 # IMPORTANT: Label istio.io/dataplane-mode: ambient enables Ambient mesh (NO sidecars)
 
 ---

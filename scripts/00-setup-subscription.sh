@@ -1,6 +1,7 @@
 #!/bin/bash
 # Setup script for deploying to a new Azure subscription
 # This script helps manage Terraform state across multiple subscriptions
+# @author Shanaka Jayasundera - shanakaj@gmail.com
 
 set -e
 

@@ -1,5 +1,6 @@
 #!/bin/bash
 # Install Istio with Ambient Mesh profile (NO SIDECARS)
+# @author Shanaka Jayasundera - shanakaj@gmail.com
 
 set -e
 
