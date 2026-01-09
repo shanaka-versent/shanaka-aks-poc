@@ -1,4 +1,4 @@
-# KUDOS POC - Main Terraform Configuration
+# MTKC POC - Main Terraform Configuration
 # @author Shanaka Jayasundera - shanakaj@gmail.com
 
 locals {

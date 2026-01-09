@@ -10,7 +10,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 CERTS_DIR="$PROJECT_ROOT/certs"
 
 echo "=============================================="
-echo "  KUDOS POC - Create TLS Secrets             "
+echo "  MTKC POC - Create TLS Secrets             "
 echo "=============================================="
 echo ""
 

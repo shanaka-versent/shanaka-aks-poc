@@ -1,4 +1,4 @@
-# KUDOS POC - Azure Application Gateway Integration with Kubernetes Gateway API for Multitenancy
+# MTKC POC - Azure Application Gateway Integration with Kubernetes Gateway API for Multitenancy
 
 This POC validates Azure Application Gateway integration with Kubernetes Gateway API on AKS with Istio Ambient Mesh.
 
@@ -47,7 +47,7 @@ flowchart TD
             ILB["Internal Load Balancer"]
 
             subgraph ISTIO ["Istio Gateway Pod"]
-                GW["Gateway: kudos-gateway"]
+                GW["Gateway: mtkc-gateway"]
                 TLS2{{"TLS Termination #2"}}
                 HR["HTTPRoute Matching"]
             end
@@ -100,10 +100,10 @@ sequenceDiagram
     participant Pod as Backend Pod
 
     Client->>+AppGW: HTTPS Request (TLS 1.2/1.3)
-    Note over AppGW: Decrypt with appgw.pfx<br/>CN=kudos-poc.local
+    Note over AppGW: Decrypt with appgw.pfx<br/>CN=mtkc-poc.local
 
-    AppGW->>+IstioGW: HTTPS (re-encrypted)<br/>Host: kudos-gateway.istio-ingress.svc.cluster.local
-    Note over IstioGW: Decrypt with istio-gw.crt<br/>CN=kudos-gateway.istio-ingress.svc.cluster.local
+    AppGW->>+IstioGW: HTTPS (re-encrypted)<br/>Host: mtkc-gateway.istio-ingress.svc.cluster.local
+    Note over IstioGW: Decrypt with istio-gw.crt<br/>CN=mtkc-gateway.istio-ingress.svc.cluster.local
 
     IstioGW->>+Pod: HTTP (plain)<br/>via ClusterIP:8080
     Pod-->>-IstioGW: Response
@@ -115,8 +115,8 @@ sequenceDiagram
 
 | TLS Termination | Certificate | CN | Signed By | Purpose |
 |-----------------|-------------|-----|-----------|---------|
-| **#1 App Gateway** | `appgw.pfx` | kudos-poc.local | KUDOS-POC-CA | Frontend HTTPS listener |
-| **#2 Istio Gateway** | `istio-gw.crt` | kudos-gateway.istio-ingress.svc.cluster.local | KUDOS-POC-CA | Backend TLS from App Gateway |
+| **#1 App Gateway** | `appgw.pfx` | mtkc-poc.local | MTKC-POC-CA | Frontend HTTPS listener |
+| **#2 Istio Gateway** | `istio-gw.crt` | mtkc-gateway.istio-ingress.svc.cluster.local | MTKC-POC-CA | Backend TLS from App Gateway |
 
 #### App Gateway Backend Settings
 
@@ -124,22 +124,22 @@ sequenceDiagram
 |---------|-------|
 | Protocol | HTTPS |
 | Port | 443 |
-| Host Header | `kudos-gateway.istio-ingress.svc.cluster.local` |
-| Trusted Root CA | `ca.crt` (KUDOS-POC-CA) |
+| Host Header | `mtkc-gateway.istio-ingress.svc.cluster.local` |
+| Trusted Root CA | `ca.crt` (MTKC-POC-CA) |
 | Health Probe | HTTPS GET `/healthz/ready` |
 
 ### Kubernetes Gateway API Components
 
 ```mermaid
 flowchart TB
-    subgraph GW["Gateway: kudos-gateway<br/>(namespace: istio-ingress)"]
+    subgraph GW["Gateway: mtkc-gateway<br/>(namespace: istio-ingress)"]
         direction TB
         GWClass["GatewayClass: istio"]
         Listener["Listener: https<br/>Port: 443 | Protocol: HTTPS<br/>TLS Mode: Terminate<br/>Certificate: istio-gateway-tls"]
     end
 
     subgraph SVC["Service Created by Istio"]
-        Service["kudos-gateway-istio<br/>Type: LoadBalancer<br/>IP: 10.0.1.x (Internal)<br/>Port: 443/TCP<br/>⚠️ externalTrafficPolicy: Local"]
+        Service["mtkc-gateway-istio<br/>Type: LoadBalancer<br/>IP: 10.0.1.x (Internal)<br/>Port: 443/TCP<br/>⚠️ externalTrafficPolicy: Local"]
     end
 
     subgraph Routes["HTTPRoutes"]
@@ -210,15 +210,15 @@ flowchart TB
     end
 
     subgraph Step3["3. App Gateway Backend"]
-        Backend["Backend Pool: aks-gateway-pool<br/>Target: 10.0.1.x (Internal LB)<br/>Protocol: HTTPS:443<br/>Host Header: kudos-gateway.istio-ingress.svc.cluster.local"]
+        Backend["Backend Pool: aks-gateway-pool<br/>Target: 10.0.1.x (Internal LB)<br/>Protocol: HTTPS:443<br/>Host Header: mtkc-gateway.istio-ingress.svc.cluster.local"]
     end
 
     subgraph Step4["4. Azure Internal LB"]
-        ILB["IP: 10.0.1.x<br/>Service: kudos-gateway-istio<br/>externalTrafficPolicy: Local"]
+        ILB["IP: 10.0.1.x<br/>Service: mtkc-gateway-istio<br/>externalTrafficPolicy: Local"]
     end
 
     subgraph Step5["5. Istio Gateway Pod"]
-        Gateway["TLS Termination #2<br/>Gateway: kudos-gateway<br/>HTTPRoute matching"]
+        Gateway["TLS Termination #2<br/>Gateway: mtkc-gateway<br/>HTTPRoute matching"]
     end
 
     subgraph Step6["6. HTTPRoute"]
@@ -256,17 +256,17 @@ flowchart TB
 ```mermaid
 flowchart TB
     subgraph Azure["AZURE"]
-        subgraph VNet["VNet: vnet-kudos-poc (10.0.0.0/16)"]
+        subgraph VNet["VNet: vnet-mtkc-poc (10.0.0.0/16)"]
             subgraph AppGWSubnet["Subnet: appgw-subnet (10.0.0.0/24)"]
-                AppGW["Application Gateway<br/>appgw-kudos-poc<br/>Public IP: 68.218.110.49<br/>Private IP: 10.0.0.x<br/>NSG: Allow 80, 443"]
+                AppGW["Application Gateway<br/>appgw-mtkc-poc<br/>Public IP: 68.218.110.49<br/>Private IP: 10.0.0.x<br/>NSG: Allow 80, 443"]
             end
 
             subgraph AKSSubnet["Subnet: aks-subnet (10.0.1.0/24)"]
-                subgraph AKS["AKS Cluster: aks-kudos-poc"]
+                subgraph AKS["AKS Cluster: aks-mtkc-poc"]
                     ILB["Internal LB: 10.0.1.x"]
 
                     subgraph Pods["Pods"]
-                        GWPod["istio-ingress/<br/>kudos-gateway-istio"]
+                        GWPod["istio-ingress/<br/>mtkc-gateway-istio"]
                         HealthPod["gateway-health/<br/>health-responder"]
                         App1Pod["sample-apps/<br/>sample-app-1"]
                         App2Pod["sample-apps/<br/>sample-app-2"]
@@ -371,9 +371,9 @@ When running `01-deploy-terraform.sh`:
 
 | Certificate | Purpose | CN |
 |------------|---------|-----|
-| `ca.crt` | Root CA for signing | KUDOS-POC-CA |
-| `appgw.pfx` | App Gateway frontend | kudos-poc.local |
-| `istio-gw.crt` | Istio Gateway backend | kudos-gateway.istio-ingress.svc.cluster.local |
+| `ca.crt` | Root CA for signing | MTKC-POC-CA |
+| `appgw.pfx` | App Gateway frontend | mtkc-poc.local |
+| `istio-gw.crt` | Istio Gateway backend | mtkc-gateway.istio-ingress.svc.cluster.local |
 
 ## Critical Configuration Fixes
 
@@ -438,7 +438,7 @@ metadata:
   namespace: gateway-health
 spec:
   parentRefs:
-    - name: kudos-gateway
+    - name: mtkc-gateway
       namespace: istio-ingress
   rules:
     - matches:
@@ -498,14 +498,14 @@ flowchart TB
 **The Fix (applied in scripts):**
 ```bash
 # From scripts/03-deploy-kubernetes.sh (line 61)
-kubectl patch svc kudos-gateway-istio -n istio-ingress \
+kubectl patch svc mtkc-gateway-istio -n istio-ingress \
   -p '{"spec":{"externalTrafficPolicy":"Local"}}'
 ```
 
 **Verification:**
 ```bash
 # Check current policy
-kubectl get svc kudos-gateway-istio -n istio-ingress \
+kubectl get svc mtkc-gateway-istio -n istio-ingress \
   -o jsonpath='{.spec.externalTrafficPolicy}'
 # Should output: Local
 ```
@@ -531,8 +531,8 @@ resource "azurerm_role_assignment" "aks_network_contributor" {
 ### Gateway Service Naming
 
 Istio creates the service with suffix `-istio`:
-- Gateway name: `kudos-gateway`
-- Service name: `kudos-gateway-istio`
+- Gateway name: `mtkc-gateway`
+- Service name: `mtkc-gateway-istio`
 
 ### Backend Pool Lifecycle (Terraform)
 
@@ -554,13 +554,13 @@ lifecycle {
 
 ```bash
 # Get AKS credentials
-az aks get-credentials --resource-group rg-kudos-poc --name aks-kudos-poc
+az aks get-credentials --resource-group rg-mtkc-poc --name aks-mtkc-poc
 
 # Check Gateway API resources
 kubectl get gateway,httproute -A
 
 # Get Gateway Internal LB IP
-kubectl get svc -n istio-ingress kudos-gateway-istio
+kubectl get svc -n istio-ingress mtkc-gateway-istio
 
 # Check pods (should have 1 container - no sidecars)
 kubectl get pods -n sample-apps -o wide
@@ -569,7 +569,7 @@ kubectl get pods -n sample-apps -o wide
 kubectl get pods -n istio-system -l app=ztunnel
 
 # Check externalTrafficPolicy
-kubectl get svc kudos-gateway-istio -n istio-ingress -o jsonpath='{.spec.externalTrafficPolicy}'
+kubectl get svc mtkc-gateway-istio -n istio-ingress -o jsonpath='{.spec.externalTrafficPolicy}'
 
 # Test endpoints (replace <IP> with App Gateway public IP)
 # Use -k flag for self-signed certificates
@@ -579,8 +579,8 @@ curl -k https://<IP>/app2
 
 # Check App Gateway backend health
 az network application-gateway show-backend-health \
-  --resource-group rg-kudos-poc \
-  --name appgw-kudos-poc
+  --resource-group rg-mtkc-poc \
+  --name appgw-mtkc-poc
 
 # Check TLS secret
 kubectl get secret istio-gateway-tls -n istio-ingress
@@ -593,7 +593,7 @@ kubectl get secret istio-gateway-tls -n istio-ingress
 
 | Issue | Check | Fix |
 |-------|-------|-----|
-| Gateway no IP | `kubectl describe gateway kudos-gateway -n istio-ingress` | Check AKS Network Contributor role |
+| Gateway no IP | `kubectl describe gateway mtkc-gateway -n istio-ingress` | Check AKS Network Contributor role |
 | Backend unhealthy | Check HTTPRoute for /healthz | Verify health-responder running |
 | 502 errors | Check Gateway logs | Verify HTTPRoutes attached |
 | Sidecars present | Namespace labels | Add `istio.io/dataplane-mode: ambient` |
@@ -604,7 +604,7 @@ kubectl get secret istio-gateway-tls -n istio-ingress
 
 ### Common HTTPS Issues
 
-1. **Certificate hostname mismatch**: Backend settings must use `host_name = "kudos-gateway.istio-ingress.svc.cluster.local"`
+1. **Certificate hostname mismatch**: Backend settings must use `host_name = "mtkc-gateway.istio-ingress.svc.cluster.local"`
 
 2. **Trusted root certificate**: App Gateway needs the CA certificate that signed the backend cert
 

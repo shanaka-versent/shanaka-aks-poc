@@ -1,4 +1,4 @@
-# KUDOS POC - Terraform Variables
+# MTKC POC - Terraform Variables
 # @author Shanaka Jayasundera - shanakaj@gmail.com
 
 # Azure Subscription
@@ -23,7 +23,7 @@ variable "environment" {
 variable "project_name" {
   description = "Project name for resource naming"
   type        = string
-  default     = "kudos"
+  default     = "mtkc"
 }
 
 # Network
@@ -81,7 +81,7 @@ variable "appgw_ssl_cert_password" {
   description = "Password for App Gateway SSL certificate"
   type        = string
   sensitive   = true
-  default     = "KudosPoc2024!"
+  default     = "MTKCPoc2024!"
 }
 
 variable "backend_https_enabled" {
@@ -95,7 +95,7 @@ variable "tags" {
   description = "Tags for all resources"
   type        = map(string)
   default = {
-    Project   = "KUDOS-POC"
+    Project   = "MTKC-POC"
     Purpose   = "Gateway-API-AppGW-Integration"
     ManagedBy = "Terraform"
   }

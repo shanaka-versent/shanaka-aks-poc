@@ -10,7 +10,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 CERTS_DIR="$PROJECT_ROOT/certs"
 
 echo "=============================================="
-echo "  KUDOS POC - Generate TLS Certificates      "
+echo "  MTKC POC - Generate TLS Certificates      "
 echo "=============================================="
 echo ""
 
@@ -18,7 +18,7 @@ echo ""
 mkdir -p "$CERTS_DIR"
 
 # Get the domain name (default to the App Gateway IP if no domain provided)
-DOMAIN="${1:-kudos-poc.local}"
+DOMAIN="${1:-mtkc-poc.local}"
 
 echo "[1/4] Generating Root CA..."
 # Generate Root CA (for self-signed certs)
@@ -26,7 +26,7 @@ openssl genrsa -out "$CERTS_DIR/ca.key" 4096
 openssl req -x509 -new -nodes -sha256 -days 365 \
     -key "$CERTS_DIR/ca.key" \
     -out "$CERTS_DIR/ca.crt" \
-    -subj "/C=US/ST=State/L=City/O=KUDOS-POC/CN=KUDOS-POC-CA"
+    -subj "/C=US/ST=State/L=City/O=MTKC-POC/CN=MTKC-POC-CA"
 
 echo "[2/4] Generating App Gateway certificate..."
 # Generate App Gateway certificate (frontend - public facing)
@@ -43,7 +43,7 @@ prompt = no
 C = US
 ST = State
 L = City
-O = KUDOS-POC
+O = MTKC-POC
 CN = $DOMAIN
 
 [v3_req]
@@ -73,7 +73,7 @@ openssl x509 -req -in "$CERTS_DIR/appgw.csr" \
     -extensions v3_req
 
 # Create PFX for Azure App Gateway (requires password)
-APPGW_PFX_PASSWORD="KudosPoc2024!"
+APPGW_PFX_PASSWORD="MTKCPoc2024!"
 openssl pkcs12 -export \
     -out "$CERTS_DIR/appgw.pfx" \
     -inkey "$CERTS_DIR/appgw.key" \
@@ -96,8 +96,8 @@ prompt = no
 C = US
 ST = State
 L = City
-O = KUDOS-POC
-CN = kudos-gateway.istio-ingress.svc.cluster.local
+O = MTKC-POC
+CN = mtkc-gateway.istio-ingress.svc.cluster.local
 
 [v3_req]
 keyUsage = keyEncipherment, dataEncipherment
@@ -105,8 +105,8 @@ extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = kudos-gateway.istio-ingress.svc.cluster.local
-DNS.2 = kudos-gateway-istio.istio-ingress.svc.cluster.local
+DNS.1 = mtkc-gateway.istio-ingress.svc.cluster.local
+DNS.2 = mtkc-gateway-istio.istio-ingress.svc.cluster.local
 DNS.3 = *.istio-ingress.svc.cluster.local
 DNS.4 = localhost
 DNS.5 = *

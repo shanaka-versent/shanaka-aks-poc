@@ -10,7 +10,7 @@ TERRAFORM_DIR="$PROJECT_ROOT/terraform"
 CERTS_DIR="$PROJECT_ROOT/certs"
 
 echo "=============================================="
-echo "  KUDOS POC - Step 1: Deploy Infrastructure  "
+echo "  MTKC POC - Step 1: Deploy Infrastructure  "
 echo "=============================================="
 echo ""
 

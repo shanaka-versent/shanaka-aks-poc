@@ -16,7 +16,7 @@ if [ -f "$CERTS_DIR/istio-gw.crt" ] && [ -f "$CERTS_DIR/istio-gw.key" ]; then
 fi
 
 echo "=============================================="
-echo "  KUDOS POC - Step 3: Deploy K8s Resources  "
+echo "  MTKC POC - Step 3: Deploy K8s Resources  "
 echo "=============================================="
 echo ""
 if [ "$TLS_ENABLED" = true ]; then
@@ -59,7 +59,7 @@ echo "    This may take 1-2 minutes..."
 
 for i in {1..60}; do
     # Istio creates service as <gateway-name>-istio
-    IP=$(kubectl get svc -n istio-ingress kudos-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+    IP=$(kubectl get svc -n istio-ingress mtkc-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
     if [ -n "$IP" ]; then
         echo "    Gateway IP: $IP"
         break
@@ -71,7 +71,7 @@ done
 if [ -z "$IP" ]; then
     echo "ERROR: Gateway did not get an IP. Check:"
     echo "  kubectl get svc -n istio-ingress"
-    echo "  kubectl describe gateway kudos-gateway -n istio-ingress"
+    echo "  kubectl describe gateway mtkc-gateway -n istio-ingress"
     exit 1
 fi
 
@@ -82,13 +82,13 @@ if [[ "$IP" == 10.0.1.* ]]; then
 else
     echo "    WARNING: IP $IP may not be internal. Expected 10.0.1.x range."
     echo "    Checking service annotations..."
-    kubectl get svc kudos-gateway-istio -n istio-ingress -o jsonpath='{.metadata.annotations}' | grep -i internal || echo "    No internal annotation found"
+    kubectl get svc mtkc-gateway-istio -n istio-ingress -o jsonpath='{.metadata.annotations}' | grep -i internal || echo "    No internal annotation found"
 fi
 
 # CRITICAL: Set externalTrafficPolicy to Local for Azure ILB to work with App Gateway
 echo "[6/10] Configuring externalTrafficPolicy: Local..."
 echo "    (Required for Azure ILB with DSR/Floating IP to work with App Gateway)"
-kubectl patch svc kudos-gateway-istio -n istio-ingress -p '{"spec":{"externalTrafficPolicy":"Local"}}'
+kubectl patch svc mtkc-gateway-istio -n istio-ingress -p '{"spec":{"externalTrafficPolicy":"Local"}}'
 echo "    Done."
 
 # Deploy health responder

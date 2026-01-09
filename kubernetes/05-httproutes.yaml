@@ -1,4 +1,4 @@
-# KUDOS POC - HTTPRoutes for Kubernetes Gateway API
+# MTKC POC - HTTPRoutes for Kubernetes Gateway API
 # @author Shanaka Jayasundera - shanakaj@gmail.com
 # These route traffic from the Gateway to backend services
 #
@@ -13,7 +13,7 @@ metadata:
   namespace: gateway-health
 spec:
   parentRefs:
-    - name: kudos-gateway
+    - name: mtkc-gateway
       namespace: istio-ingress
   rules:
     - matches:
@@ -33,7 +33,7 @@ metadata:
   namespace: sample-apps
 spec:
   parentRefs:
-    - name: kudos-gateway
+    - name: mtkc-gateway
       namespace: istio-ingress
   rules:
     - matches:
@@ -53,7 +53,7 @@ metadata:
   namespace: sample-apps
 spec:
   parentRefs:
-    - name: kudos-gateway
+    - name: mtkc-gateway
       namespace: istio-ingress
   rules:
     - matches:

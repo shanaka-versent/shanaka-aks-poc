@@ -10,7 +10,7 @@ TERRAFORM_DIR="$PROJECT_ROOT/terraform"
 K8S_DIR="$PROJECT_ROOT/kubernetes"
 
 echo "=============================================="
-echo "  KUDOS POC - Cleanup                        "
+echo "  MTKC POC - Cleanup                        "
 echo "=============================================="
 echo ""
 echo "This will destroy ALL resources created by this POC."

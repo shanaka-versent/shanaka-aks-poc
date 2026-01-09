@@ -1,6 +1,6 @@
 #!/bin/bash
 # Comprehensive POC validation script
-# This script performs all validation checks for the KUDOS POC
+# This script performs all validation checks for the MTKC POC
 # @author Shanaka Jayasundera - shanakaj@gmail.com
 
 set -e
@@ -21,7 +21,7 @@ info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 
 echo "=============================================="
-echo "  KUDOS POC - Comprehensive Validation       "
+echo "  MTKC POC - Comprehensive Validation       "
 echo "=============================================="
 echo ""
 
@@ -237,7 +237,7 @@ fi
 echo "--- Additional Checks ---"
 
 # Check Internal LB IP (Istio creates service as <gateway-name>-istio)
-INTERNAL_LB_IP=$(kubectl get svc -n istio-ingress kudos-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+INTERNAL_LB_IP=$(kubectl get svc -n istio-ingress mtkc-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
 if [[ "$INTERNAL_LB_IP" == 10.0.1.* ]]; then
     pass "Internal LB IP in correct subnet: $INTERNAL_LB_IP"
 else
@@ -245,7 +245,7 @@ else
 fi
 
 # Check externalTrafficPolicy (required for Azure ILB with App Gateway)
-TRAFFIC_POLICY=$(kubectl get svc -n istio-ingress kudos-gateway-istio -o jsonpath='{.spec.externalTrafficPolicy}' 2>/dev/null || echo "")
+TRAFFIC_POLICY=$(kubectl get svc -n istio-ingress mtkc-gateway-istio -o jsonpath='{.spec.externalTrafficPolicy}' 2>/dev/null || echo "")
 if [ "$TRAFFIC_POLICY" == "Local" ]; then
     pass "externalTrafficPolicy: Local (required for Azure ILB)"
 else

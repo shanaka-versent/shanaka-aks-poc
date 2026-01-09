@@ -1,4 +1,4 @@
-# KUDOS POC - Terraform Outputs
+# MTKC POC - Terraform Outputs
 # @author Shanaka Jayasundera - shanakaj@gmail.com
 
 output "resource_group_name" {

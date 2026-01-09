@@ -1,4 +1,4 @@
-# KUDOS POC - Kubernetes Gateway API - Gateway Resource
+# MTKC POC - Kubernetes Gateway API - Gateway Resource
 # @author Shanaka Jayasundera - shanakaj@gmail.com
 # This creates the Istio ingress gateway with an Internal Load Balancer
 #
@@ -13,7 +13,7 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: kudos-gateway
+  name: mtkc-gateway
   namespace: istio-ingress
 spec:
   # Use Istio's Gateway API implementation (NOT IngressClass)
@@ -26,7 +26,7 @@ spec:
       service.beta.kubernetes.io/azure-load-balancer-internal: "true"
     # NOTE: externalTrafficPolicy: Local is required for Azure ILB to work with
     # App Gateway. This must be set via kubectl patch after Gateway creation:
-    # kubectl patch svc kudos-gateway-istio -n istio-ingress -p '{"spec":{"externalTrafficPolicy":"Local"}}'
+    # kubectl patch svc mtkc-gateway-istio -n istio-ingress -p '{"spec":{"externalTrafficPolicy":"Local"}}'
 
   listeners:
     # HTTP Listener (port 80)
@@ -59,7 +59,7 @@ spec:
 # apiVersion: gateway.networking.k8s.io/v1
 # kind: Gateway
 # metadata:
-#   name: kudos-gateway
+#   name: mtkc-gateway
 #   namespace: istio-ingress
 #   annotations:
 #     # Force ClusterIP instead of LoadBalancer
@@ -79,14 +79,14 @@ spec:
 # apiVersion: v1
 # kind: Service
 # metadata:
-#   name: kudos-gateway-ilb
+#   name: mtkc-gateway-ilb
 #   namespace: istio-ingress
 #   annotations:
 #     service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 # spec:
 #   type: LoadBalancer
 #   selector:
-#     istio.io/gateway-name: kudos-gateway
+#     istio.io/gateway-name: mtkc-gateway
 #   ports:
 #     - name: http
 #       port: 80

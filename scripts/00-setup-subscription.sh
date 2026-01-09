@@ -10,7 +10,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 TERRAFORM_DIR="$PROJECT_ROOT/terraform"
 
 echo "=============================================="
-echo "  KUDOS POC - Subscription Setup             "
+echo "  MTKC POC - Subscription Setup             "
 echo "=============================================="
 echo ""
 

@@ -1,4 +1,4 @@
-# KUDOS POC - Terraform Providers
+# MTKC POC - Terraform Providers
 # @author Shanaka Jayasundera - shanakaj@gmail.com
 
 terraform {

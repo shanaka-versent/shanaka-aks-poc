@@ -9,7 +9,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 TERRAFORM_DIR="$PROJECT_ROOT/terraform"
 
 echo "=============================================="
-echo "  KUDOS POC - Step 4: Update App Gateway     "
+echo "  MTKC POC - Step 4: Update App Gateway     "
 echo "=============================================="
 echo ""
 
@@ -29,7 +29,7 @@ echo ""
 
 # Get Gateway Internal LB IP (Istio creates service as <gateway-name>-istio)
 echo "[1/4] Getting Gateway Internal LB IP..."
-INTERNAL_LB_IP=$(kubectl get svc -n istio-ingress kudos-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+INTERNAL_LB_IP=$(kubectl get svc -n istio-ingress mtkc-gateway-istio -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
 
 if [ -z "$INTERNAL_LB_IP" ]; then
     echo "ERROR: Could not get Gateway Internal LB IP"
@@ -41,11 +41,11 @@ echo "    Internal LB IP: $INTERNAL_LB_IP"
 
 # Verify externalTrafficPolicy is Local (required for Azure ILB with App Gateway)
 echo "[2/4] Verifying externalTrafficPolicy..."
-TRAFFIC_POLICY=$(kubectl get svc kudos-gateway-istio -n istio-ingress -o jsonpath='{.spec.externalTrafficPolicy}')
+TRAFFIC_POLICY=$(kubectl get svc mtkc-gateway-istio -n istio-ingress -o jsonpath='{.spec.externalTrafficPolicy}')
 if [ "$TRAFFIC_POLICY" != "Local" ]; then
     echo "    Current: '$TRAFFIC_POLICY', required: 'Local'"
     echo "    Patching service..."
-    kubectl patch svc kudos-gateway-istio -n istio-ingress -p '{"spec":{"externalTrafficPolicy":"Local"}}'
+    kubectl patch svc mtkc-gateway-istio -n istio-ingress -p '{"spec":{"externalTrafficPolicy":"Local"}}'
     echo "    Done."
 else
     echo "    Already set to 'Local' (correct)"

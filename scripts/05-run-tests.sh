@@ -19,7 +19,7 @@ fail() { echo -e "${RED}FAIL${NC}: $1"; }
 warn() { echo -e "${YELLOW}WARN${NC}: $1"; }
 
 echo "=============================================="
-echo "  KUDOS POC - Step 5: Validation Tests       "
+echo "  MTKC POC - Step 5: Validation Tests       "
 echo "=============================================="
 echo ""
 

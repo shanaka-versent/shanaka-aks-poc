@@ -1,4 +1,4 @@
-# KUDOS POC - Application Gateway Configuration
+# MTKC POC - Application Gateway Configuration
 # @author Shanaka Jayasundera - shanakaj@gmail.com
 
 # Public IP for App Gateway
@@ -109,7 +109,7 @@ resource "azurerm_application_gateway" "main" {
       request_timeout                     = 60
       probe_name                          = "health-probe-https"
       # Use specific hostname matching the backend certificate CN
-      host_name                           = "kudos-gateway.istio-ingress.svc.cluster.local"
+      host_name                           = "mtkc-gateway.istio-ingress.svc.cluster.local"
       trusted_root_certificate_names      = ["istio-backend-ca"]
     }
   }
@@ -140,7 +140,7 @@ resource "azurerm_application_gateway" "main" {
       timeout             = 60
       unhealthy_threshold = 3
       # Use specific hostname matching the backend certificate CN
-      host                = "kudos-gateway.istio-ingress.svc.cluster.local"
+      host                = "mtkc-gateway.istio-ingress.svc.cluster.local"
 
       match {
         status_code = ["200-399"]

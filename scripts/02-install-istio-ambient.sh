@@ -9,7 +9,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 TERRAFORM_DIR="$PROJECT_ROOT/terraform"
 
 echo "=============================================="
-echo "  KUDOS POC - Step 2: Install Istio Ambient  "
+echo "  MTKC POC - Step 2: Install Istio Ambient  "
 echo "=============================================="
 echo ""
 

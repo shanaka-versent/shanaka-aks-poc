@@ -1,4 +1,4 @@
-# KUDOS POC - AKS Cluster Configuration
+# MTKC POC - AKS Cluster Configuration
 # @author Shanaka Jayasundera - shanakaj@gmail.com
 
 # AKS Cluster

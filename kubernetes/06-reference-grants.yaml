@@ -1,4 +1,4 @@
-# KUDOS POC - ReferenceGrants
+# MTKC POC - ReferenceGrants
 # @author Shanaka Jayasundera - shanakaj@gmail.com
 # ReferenceGrants allow HTTPRoutes to reference services across namespaces
 # Required for Gateway API cross-namespace references

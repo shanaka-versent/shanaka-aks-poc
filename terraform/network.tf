@@ -1,4 +1,4 @@
-# KUDOS POC - Network Configuration
+# MTKC POC - Network Configuration
 # @author Shanaka Jayasundera - shanakaj@gmail.com
 
 # Virtual Network
