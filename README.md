@@ -1,4 +1,4 @@
-# MTKC POC - Azure Application Gateway Integration with Kubernetes Gateway API for Multitenancy
+# Multitenancy K8s Cluster (MTKC) POC - Azure Application Gateway Integration with Kubernetes Gateway API for Multitenancy
 
 This POC validates Azure Application Gateway integration with Kubernetes Gateway API on AKS with Istio Ambient Mesh.
 
