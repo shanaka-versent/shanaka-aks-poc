@@ -87,9 +87,6 @@ flowchart TD
     class ISTIO istio
     class APPS apps
     class TLS1,TLS2 tls
-
-    WM["📧 shanakaj@gmail.com"]:::watermark
-    classDef watermark fill:none,stroke:none,color:#999,font-size:10px
 ```
 
 ### End-to-End TLS Flow (Detailed)
@@ -112,8 +109,6 @@ sequenceDiagram
     Pod-->>-IstioGW: Response
     IstioGW-->>-AppGW: HTTPS Response
     AppGW-->>-Client: HTTPS Response
-
-    note right of Pod: 📧 shanakaj@gmail.com
 ```
 
 #### Certificate Chain
@@ -181,9 +176,6 @@ flowchart TB
     class SVC service
     class Routes routes
     class Grants grants
-
-    WM["📧 shanakaj@gmail.com"]:::watermark
-    classDef watermark fill:none,stroke:none,color:#999,font-size:10px
 ```
 
 #### Gateway Listener Configuration
@@ -257,9 +249,6 @@ flowchart TB
     class Step5 istio
     class Step6 route
     class Step7 backend
-
-    WM["📧 shanakaj@gmail.com"]:::watermark
-    classDef watermark fill:none,stroke:none,color:#999,font-size:10px
 ```
 
 ### Network Diagram
@@ -307,9 +296,6 @@ flowchart TB
     class AppGWSubnet,AKSSubnet subnet
     class AKS aks
     class Pods pods
-
-    WM["📧 shanakaj@gmail.com"]:::watermark
-    classDef watermark fill:none,stroke:none,color:#999,font-size:10px
 ```
 
 #### Network Configuration
@@ -432,9 +418,6 @@ flowchart LR
     class IstioGW gateway
     class NoRoute fail
     class WithRoute pass
-
-    WM["📧 shanakaj@gmail.com"]:::watermark
-    classDef watermark fill:none,stroke:none,color:#999,font-size:10px
 ```
 
 **Files containing this fix:**
@@ -503,9 +486,6 @@ flowchart TB
     class Broken broken
     class Working working
     class X1 error
-
-    WM["📧 shanakaj@gmail.com"]:::watermark
-    classDef watermark fill:none,stroke:none,color:#999,font-size:10px
 ```
 
 **Files containing this fix:**
