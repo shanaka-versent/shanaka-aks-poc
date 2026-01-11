@@ -1,0 +1,28 @@
+# ArgoCD Application - Sample App 1
+# @author Shanaka Jayasundera - shanakaj@gmail.com
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sample-app-1
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/shanaka-versent/shanaka-aks-poc.git
+    # targetRevision: main  # Uncomment after merging argocd-integration to main
+    targetRevision: argocd-integration  # Comment this after merge
+    path: kubernetes
+    directory:
+      include: "03-sample-app-1.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sample-apps
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+      - ApplyOutOfSyncOnly=true

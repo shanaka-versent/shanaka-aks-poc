@@ -693,39 +693,100 @@ argocd app create sample-apps \
 
 ### ArgoCD Architecture
 
-> **Note:** ArgoCD uses its own separate Internal Load Balancer, independent from the Istio Gateway Internal LB used for application traffic.
+> **Note:** ArgoCD uses its own separate Azure Internal Load Balancer, independent from the Istio Gateway Internal LB used for application traffic. Both LBs are Azure resources created automatically when Kubernetes Services of type `LoadBalancer` are deployed.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              AKS Cluster                                     │
-│                                                                              │
-│  ┌───────────────────────────────────────┐  ┌────────────────────────────┐  │
-│  │         istio-ingress namespace       │  │      argocd namespace      │  │
-│  │                                       │  │                            │  │
-│  │  ┌─────────────────────────────────┐  │  │  ┌────────────┐            │  │
-│  │  │    mtkc-gateway-istio           │  │  │  │ argocd-    │            │  │
-│  │  │    (Istio Gateway)              │  │  │  │ server     │            │  │
-│  │  └───────────┬─────────────────────┘  │  │  └─────┬──────┘            │  │
-│  │              │                        │  │        │                   │  │
-│  │  ┌───────────┴─────────────────────┐  │  │  ┌─────┴──────────────┐   │  │
-│  │  │ Internal LB #1 (App Traffic)    │  │  │  │ Internal LB #2     │   │  │
-│  │  │ IP: 10.0.1.x                    │  │  │  │ (ArgoCD)           │   │  │
-│  │  │ ◄── App Gateway Backend         │  │  │  │ IP: 10.0.1.y       │   │  │
-│  │  └─────────────────────────────────┘  │  │  │ ◄── port-forward   │   │  │
-│  └───────────────────────────────────────┘  │  └────────────────────┘   │  │
-│                                              │                            │  │
-│                                              └────────────────────────────┘  │
-│                                                                              │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                         sample-apps namespace                          │  │
-│  │  ◄── Traffic via Istio Gateway    ◄── Managed by ArgoCD               │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Internet["Internet"]
+        User(["User/Client"])
+        Admin(["Platform Admin"])
+    end
 
-Legend:
-  Internal LB #1: Istio Gateway service for application traffic (App Gateway → Istio)
-  Internal LB #2: ArgoCD server service for GitOps management (accessed via port-forward)
+    subgraph Azure["Azure Cloud"]
+        subgraph NodeRG["Node Resource Group (MC_*)"]
+            ILB1["Azure Internal LB #1<br/>IP: 10.0.1.x<br/>(App Traffic)"]
+            ILB2["Azure Internal LB #2<br/>IP: 10.0.1.y<br/>(ArgoCD)"]
+        end
+
+        AppGW["Application Gateway<br/>Public IP: 4.147.185.204"]
+
+        subgraph AKS["AKS Cluster"]
+            subgraph NS1["istio-ingress namespace"]
+                GWSvc["Service: mtkc-gateway-istio<br/>type: LoadBalancer"]
+                GWPod["Istio Gateway Pod"]
+            end
+
+            subgraph NS2["argocd namespace"]
+                ArgoSvc["Service: argocd-server<br/>type: LoadBalancer"]
+                ArgoPod["ArgoCD Server Pod"]
+                ArgoRepo["ArgoCD Repo Server"]
+                ArgoCtrl["ArgoCD App Controller"]
+            end
+
+            subgraph NS3["sample-apps namespace"]
+                App1["sample-app-1"]
+                App2["sample-app-2"]
+            end
+
+            subgraph NS4["gateway-health namespace"]
+                Health["health-responder"]
+            end
+        end
+    end
+
+    LocalPC(["Local Machine<br/>kubectl port-forward"])
+
+    %% Application Traffic Flow
+    User -->|"HTTPS :443"| AppGW
+    AppGW -->|"HTTPS :443"| ILB1
+    ILB1 --> GWSvc
+    GWSvc --> GWPod
+    GWPod -->|"/app1"| App1
+    GWPod -->|"/app2"| App2
+    GWPod -->|"/healthz/*"| Health
+
+    %% ArgoCD Traffic Flow
+    Admin -->|"kubectl port-forward<br/>localhost:8080"| LocalPC
+    LocalPC -->|"kubectl API"| ArgoSvc
+    ArgoSvc --> ILB2
+    ILB2 --> ArgoPod
+
+    %% ArgoCD GitOps Flow
+    ArgoCtrl -.->|"Manages"| App1
+    ArgoCtrl -.->|"Manages"| App2
+    ArgoRepo -.->|"Syncs from Git"| ArgoCtrl
+
+    classDef azure fill:#e6f2ff,stroke:#0078d4,stroke-width:2px,color:#333
+    classDef ilb fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#333
+    classDef k8s fill:#e8eaf6,stroke:#326ce5,stroke-width:2px,color:#333
+    classDef apps fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#333
+    classDef argocd fill:#fff3e0,stroke:#f57c00,stroke-width:2px,color:#333
+    classDef external fill:#fce4ec,stroke:#c2185b,stroke-width:2px,color:#333
+
+    class AppGW azure
+    class ILB1,ILB2 ilb
+    class GWSvc,GWPod k8s
+    class App1,App2,Health apps
+    class ArgoSvc,ArgoPod,ArgoRepo,ArgoCtrl argocd
+    class User,Admin,LocalPC external
 ```
+
+#### Key Points
+
+| Component | Type | Purpose |
+|-----------|------|---------|
+| **Internal LB #1** | Azure Load Balancer | Routes traffic from App Gateway to Istio Gateway |
+| **Internal LB #2** | Azure Load Balancer | Exposes ArgoCD server (accessed via port-forward) |
+| **mtkc-gateway-istio** | K8s Service (LoadBalancer) | Creates Internal LB #1 automatically |
+| **argocd-server** | K8s Service (LoadBalancer) | Creates Internal LB #2 automatically |
+
+#### Traffic Patterns
+
+| Traffic Type | Flow | Protocol |
+|--------------|------|----------|
+| **App Traffic** | User → App Gateway → Internal LB #1 → Istio Gateway → Apps | HTTPS → HTTPS → HTTP |
+| **ArgoCD Access** | Admin → port-forward → Internal LB #2 → ArgoCD Server | HTTP (local) |
+| **GitOps Sync** | ArgoCD Controller → Git Repo → Kubernetes API | HTTPS |
 
 ---
 
