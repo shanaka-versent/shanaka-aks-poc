@@ -473,9 +473,9 @@ kubectl get svc mtkc-gateway-istio -n istio-ingress \
 AKS needs Network Contributor role on the VNet to create Internal Load Balancers:
 
 ```hcl
-# From terraform/aks.tf
-resource "azurerm_role_assignment" "aks_network_contributor" {
-  scope                = azurerm_virtual_network.main.id
+# From terraform/modules/aks/main.tf
+resource "azurerm_role_assignment" "aks_network_contributor_vnet" {
+  scope                = var.vnet_id
   role_definition_name = "Network Contributor"
   principal_id         = azurerm_kubernetes_cluster.main.identity[0].principal_id
 }
@@ -492,7 +492,7 @@ Istio creates the service with suffix `-istio`:
 Terraform resets the backend pool on each apply. We use lifecycle ignore to prevent this:
 
 ```hcl
-# From terraform/appgateway.tf
+# From terraform/modules/app_gateway/main.tf
 lifecycle {
   ignore_changes = [
     backend_address_pool,  # Managed by 04-update-appgw-backend.sh
