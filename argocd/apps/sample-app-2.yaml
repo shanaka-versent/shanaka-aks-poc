@@ -11,8 +11,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/shanaka-versent/shanaka-aks-poc.git
-    # targetRevision: main  # Uncomment after merging argocd-integration to main
-    targetRevision: argocd-integration  # Comment this after merge
+    targetRevision: HEAD  # Automatically follows default branch
     path: kubernetes
     directory:
       include: "04-sample-app-2.yaml"
