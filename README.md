@@ -29,7 +29,7 @@ Kubernetes Gateway API provides a superior approach to multi-tenancy compared to
 
 ### High-Level Overview
 
-![Architecture Diagram](/Users/shanaka/Downloads/High-level Solutions Architect.png)
+![Architecture Diagram](images/high-level-architecture.png)
 
 ### End-to-End TLS Flow (Detailed)
 
