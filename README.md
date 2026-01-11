@@ -392,6 +392,17 @@ spec:
           port: 8080
 ```
 
+> **Note: Why not use Istio's built-in health endpoints?**
+>
+> Istio Gateway (Envoy) does expose built-in health endpoints (`/healthz/ready`) on **port 15021** (status port), not on the application listener port (443). While you could configure App Gateway to probe port 15021 with HTTP, the HTTPRoute approach is recommended because:
+>
+> | Approach | Pros | Cons |
+> |----------|------|------|
+> | **Built-in (port 15021)** | No custom HTTPRoute needed | Different port/protocol than traffic; requires exposing additional port on LB |
+> | **Custom HTTPRoute (recommended)** | Validates complete traffic path (TLS, routing); same port/protocol as users | Requires HTTPRoute + health-responder pod |
+>
+> The HTTPRoute approach validates that TLS certificates, routes, and backends are properly configured - not just that Envoy is running.
+
 ---
 
 ### Fix 2: externalTrafficPolicy: Local (Azure DSR Fix)
