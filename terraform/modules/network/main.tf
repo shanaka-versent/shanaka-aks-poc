@@ -1,11 +1,11 @@
-# MTKC POC - Network Configuration
+# Network Module
 # @author Shanaka Jayasundera - shanakaj@gmail.com
 
 # Virtual Network
 resource "azurerm_virtual_network" "main" {
-  name                = "vnet-${local.name_prefix}"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  name                = "vnet-${var.name_prefix}"
+  location            = var.location
+  resource_group_name = var.resource_group_name
   address_space       = var.vnet_address_space
   tags                = var.tags
 }
@@ -13,7 +13,7 @@ resource "azurerm_virtual_network" "main" {
 # AKS Subnet
 resource "azurerm_subnet" "aks" {
   name                 = "snet-aks"
-  resource_group_name  = azurerm_resource_group.main.name
+  resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = [var.aks_subnet_cidr]
 }
@@ -21,16 +21,16 @@ resource "azurerm_subnet" "aks" {
 # Application Gateway Subnet
 resource "azurerm_subnet" "appgw" {
   name                 = "snet-appgw"
-  resource_group_name  = azurerm_resource_group.main.name
+  resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.main.name
   address_prefixes     = [var.appgw_subnet_cidr]
 }
 
 # NSG for AKS Subnet
 resource "azurerm_network_security_group" "aks" {
-  name                = "nsg-aks-${local.name_prefix}"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  name                = "nsg-aks-${var.name_prefix}"
+  location            = var.location
+  resource_group_name = var.resource_group_name
   tags                = var.tags
 }
 
@@ -41,11 +41,10 @@ resource "azurerm_network_security_rule" "appgw_to_aks" {
   access                      = "Allow"
   protocol                    = "Tcp"
   source_port_range           = "*"
-  # Allow direct ports and NodePort range (30000-32767) for App Gateway backend
   destination_port_ranges     = ["80", "443", "15021", "30000-32767"]
   source_address_prefix       = var.appgw_subnet_cidr
   destination_address_prefix  = var.aks_subnet_cidr
-  resource_group_name         = azurerm_resource_group.main.name
+  resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.aks.name
 }
 
@@ -59,7 +58,7 @@ resource "azurerm_network_security_rule" "allow_azure_lb" {
   destination_port_range      = "*"
   source_address_prefix       = "AzureLoadBalancer"
   destination_address_prefix  = "*"
-  resource_group_name         = azurerm_resource_group.main.name
+  resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.aks.name
 }
 
@@ -70,9 +69,9 @@ resource "azurerm_subnet_network_security_group_association" "aks" {
 
 # NSG for App Gateway Subnet
 resource "azurerm_network_security_group" "appgw" {
-  name                = "nsg-appgw-${local.name_prefix}"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+  name                = "nsg-appgw-${var.name_prefix}"
+  location            = var.location
+  resource_group_name = var.resource_group_name
   tags                = var.tags
 }
 
@@ -86,7 +85,7 @@ resource "azurerm_network_security_rule" "gateway_manager" {
   destination_port_range      = "65200-65535"
   source_address_prefix       = "GatewayManager"
   destination_address_prefix  = "*"
-  resource_group_name         = azurerm_resource_group.main.name
+  resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.appgw.name
 }
 
@@ -100,7 +99,7 @@ resource "azurerm_network_security_rule" "allow_http" {
   destination_port_range      = "80"
   source_address_prefix       = "Internet"
   destination_address_prefix  = "*"
-  resource_group_name         = azurerm_resource_group.main.name
+  resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.appgw.name
 }
 
@@ -114,7 +113,7 @@ resource "azurerm_network_security_rule" "allow_https" {
   destination_port_range      = "443"
   source_address_prefix       = "Internet"
   destination_address_prefix  = "*"
-  resource_group_name         = azurerm_resource_group.main.name
+  resource_group_name         = var.resource_group_name
   network_security_group_name = azurerm_network_security_group.appgw.name
 }
 
