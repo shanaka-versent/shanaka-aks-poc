@@ -671,12 +671,43 @@ brew install argocd
 argocd login localhost:8080 --username admin --password $(terraform output -raw argocd_admin_password) --insecure
 ```
 
-### Create an Application
+### Deploy Applications via ArgoCD
+
+Pre-configured ArgoCD Application manifests are available in the `argocd/apps/` directory:
+
+```
+argocd/apps/
+├── sample-app-1.yaml      # Manages kubernetes/03-sample-app-1.yaml
+├── sample-app-2.yaml      # Manages kubernetes/04-sample-app-2.yaml
+└── health-responder.yaml  # Manages kubernetes/02-health-responder.yaml
+```
+
+**Deploy all applications:**
+```bash
+kubectl apply -f argocd/apps/
+```
+
+**Verify applications:**
+```bash
+kubectl get applications -n argocd
+```
+
+**Expected output:**
+```
+NAME               SYNC STATUS   HEALTH STATUS
+health-responder   Synced        Healthy
+sample-app-1       Synced        Healthy
+sample-app-2       Synced        Healthy
+```
+
+> **Note:** The applications use `targetRevision: HEAD` which automatically follows the default branch. No changes needed after merging feature branches to main.
+
+### Create a Custom Application (CLI)
 
 ```bash
-# Example: Deploy sample-apps from Git repository
-argocd app create sample-apps \
-  --repo https://github.com/your-org/your-repo \
+# Example: Deploy a new app from Git repository
+argocd app create my-app \
+  --repo https://github.com/shanaka-versent/shanaka-aks-poc.git \
   --path kubernetes \
   --dest-server https://kubernetes.default.svc \
   --dest-namespace sample-apps \
