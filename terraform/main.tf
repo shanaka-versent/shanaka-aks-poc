@@ -101,3 +101,18 @@ module "app_gateway" {
 
   tags = var.tags
 }
+
+# ArgoCD Module (optional)
+module "argocd" {
+  source = "./modules/argocd"
+  count  = var.enable_argocd ? 1 : 0
+
+  namespace     = "argocd"
+  release_name  = "argocd"
+  chart_version = var.argocd_chart_version
+  service_type  = "LoadBalancer"
+  internal_lb   = true  # Use Azure Internal LoadBalancer
+  enable_ha     = var.argocd_enable_ha
+
+  depends_on = [module.aks]
+}

@@ -257,8 +257,18 @@ flowchart TB
 - Azure CLI (`az`) logged in
 - Terraform >= 1.5.0
 - kubectl
+- kubelogin (required for Azure AD authentication with AKS)
 - istioctl (will be installed if missing)
 - openssl (for TLS certificate generation)
+
+**Install kubelogin (if not installed):**
+```bash
+# macOS
+brew install azure/kubelogin/kubelogin
+
+# Or via Azure CLI
+az aks install-cli
+```
 
 ### Deploy
 
@@ -581,6 +591,141 @@ cd terraform && terraform output appgw_public_ip
 ```
 
 **Note:** HTTP requests to port 80 are automatically redirected to HTTPS (301).
+
+---
+
+## ArgoCD Integration (Optional)
+
+ArgoCD can be deployed using Terraform with the Helm provider. It is exposed via an **Azure Internal LoadBalancer** for security, and accessed via **port-forward**.
+
+### Prerequisites for ArgoCD Deployment
+
+The Terraform Kubernetes/Helm providers use your local kubeconfig to authenticate with AKS. Before deploying ArgoCD, ensure:
+
+1. **kubelogin is installed** (see Prerequisites section above)
+
+2. **Get AKS credentials and configure for Azure AD auth:**
+```bash
+# Get AKS credentials
+az aks get-credentials --resource-group rg-mtkc-poc --name aks-mtkc-poc --overwrite-existing
+
+# Convert kubeconfig for Azure AD authentication
+kubelogin convert-kubeconfig -l azurecli
+
+# Verify kubectl access
+kubectl get nodes
+```
+
+### Enable ArgoCD
+
+1. Set `enable_argocd = true` in your terraform.tfvars:
+
+```hcl
+# terraform.tfvars
+enable_argocd        = true
+argocd_chart_version = "5.55.0"
+argocd_enable_ha     = false
+```
+
+2. Apply Terraform:
+
+```bash
+cd terraform
+terraform init -upgrade  # Required for new Helm/Kubernetes providers
+terraform apply -var="enable_argocd=true"
+```
+
+### Access ArgoCD Web Console
+
+ArgoCD is exposed via Internal LoadBalancer (not accessible from internet). Use port-forward to access:
+
+```bash
+# Port-forward to ArgoCD server
+kubectl port-forward svc/argocd-server -n argocd 8080:80
+
+# Access in browser
+open http://localhost:8080
+```
+
+### Get Admin Credentials
+
+```bash
+# Get admin password from Terraform output
+terraform output -raw argocd_admin_password
+
+# Or directly from Kubernetes secret
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+```
+
+**Login credentials:**
+- Username: `admin`
+- Password: (from command above)
+
+### ArgoCD CLI Login
+
+```bash
+# Install ArgoCD CLI (macOS)
+brew install argocd
+
+# Login via port-forward (run in separate terminal: kubectl port-forward svc/argocd-server -n argocd 8080:80)
+argocd login localhost:8080 --username admin --password $(terraform output -raw argocd_admin_password) --insecure
+```
+
+### Create an Application
+
+```bash
+# Example: Deploy sample-apps from Git repository
+argocd app create sample-apps \
+  --repo https://github.com/your-org/your-repo \
+  --path kubernetes \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace sample-apps \
+  --sync-policy automated
+```
+
+### ArgoCD Terraform Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `enable_argocd` | false | Enable ArgoCD deployment |
+| `argocd_chart_version` | 5.55.0 | ArgoCD Helm chart version |
+| `argocd_enable_ha` | false | Enable High Availability mode |
+
+### ArgoCD Architecture
+
+> **Note:** ArgoCD uses its own separate Internal Load Balancer, independent from the Istio Gateway Internal LB used for application traffic.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              AKS Cluster                                     │
+│                                                                              │
+│  ┌───────────────────────────────────────┐  ┌────────────────────────────┐  │
+│  │         istio-ingress namespace       │  │      argocd namespace      │  │
+│  │                                       │  │                            │  │
+│  │  ┌─────────────────────────────────┐  │  │  ┌────────────┐            │  │
+│  │  │    mtkc-gateway-istio           │  │  │  │ argocd-    │            │  │
+│  │  │    (Istio Gateway)              │  │  │  │ server     │            │  │
+│  │  └───────────┬─────────────────────┘  │  │  └─────┬──────┘            │  │
+│  │              │                        │  │        │                   │  │
+│  │  ┌───────────┴─────────────────────┐  │  │  ┌─────┴──────────────┐   │  │
+│  │  │ Internal LB #1 (App Traffic)    │  │  │  │ Internal LB #2     │   │  │
+│  │  │ IP: 10.0.1.x                    │  │  │  │ (ArgoCD)           │   │  │
+│  │  │ ◄── App Gateway Backend         │  │  │  │ IP: 10.0.1.y       │   │  │
+│  │  └─────────────────────────────────┘  │  │  │ ◄── port-forward   │   │  │
+│  └───────────────────────────────────────┘  │  └────────────────────┘   │  │
+│                                              │                            │  │
+│                                              └────────────────────────────┘  │
+│                                                                              │
+│  ┌───────────────────────────────────────────────────────────────────────┐  │
+│  │                         sample-apps namespace                          │  │
+│  │  ◄── Traffic via Istio Gateway    ◄── Managed by ArgoCD               │  │
+│  └───────────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Legend:
+  Internal LB #1: Istio Gateway service for application traffic (App Gateway → Istio)
+  Internal LB #2: ArgoCD server service for GitOps management (accessed via port-forward)
+```
 
 ---
 

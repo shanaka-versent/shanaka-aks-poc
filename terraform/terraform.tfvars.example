@@ -1,11 +1,29 @@
+# MTKC POC - Terraform Variables Example
+# @author Shanaka Jayasundera - shanakaj@gmail.com
+#
 # Copy this file to terraform.tfvars and update values
 
 # Azure Subscription (optional - uses az CLI default if not set)
 # subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
+# Region and Environment
 location           = "australiaeast"
 environment        = "poc"
 project_name       = "mtkc"
+
+# AKS Configuration
 kubernetes_version = "1.32.5"
 aks_node_count     = 2
 aks_node_vm_size   = "Standard_D2s_v3"
+
+# HTTPS Configuration (enabled by default)
+enable_https = true
+
+# ArgoCD Configuration (optional)
+# Prerequisites before enabling:
+#   1. Install kubelogin: brew install azure/kubelogin/kubelogin
+#   2. Get AKS credentials: az aks get-credentials --resource-group rg-mtkc-poc --name aks-mtkc-poc
+#   3. Convert kubeconfig: kubelogin convert-kubeconfig -l azurecli
+enable_argocd        = false
+argocd_chart_version = "5.55.0"
+argocd_enable_ha     = false

@@ -204,6 +204,25 @@ variable "enable_rewrite_rules" {
   default     = false
 }
 
+# ArgoCD Configuration
+variable "enable_argocd" {
+  description = "Enable ArgoCD deployment via Terraform"
+  type        = bool
+  default     = false
+}
+
+variable "argocd_chart_version" {
+  description = "ArgoCD Helm chart version"
+  type        = string
+  default     = "5.55.0"
+}
+
+variable "argocd_enable_ha" {
+  description = "Enable ArgoCD High Availability mode"
+  type        = bool
+  default     = false
+}
+
 # Tags
 variable "tags" {
   description = "Tags for all resources"

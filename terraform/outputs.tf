@@ -74,3 +74,30 @@ output "aks_oidc_issuer_url" {
   description = "AKS OIDC issuer URL for workload identity"
   value       = module.aks.oidc_issuer_url
 }
+
+# ArgoCD Outputs
+output "argocd_enabled" {
+  description = "Whether ArgoCD is enabled"
+  value       = var.enable_argocd
+}
+
+output "argocd_namespace" {
+  description = "ArgoCD namespace"
+  value       = var.enable_argocd ? module.argocd[0].namespace : null
+}
+
+output "argocd_admin_password" {
+  description = "ArgoCD admin password"
+  value       = var.enable_argocd ? module.argocd[0].admin_password : null
+  sensitive   = true
+}
+
+output "argocd_server_url" {
+  description = "ArgoCD server URL"
+  value       = var.enable_argocd ? module.argocd[0].server_url : null
+}
+
+output "argocd_port_forward_command" {
+  description = "Command to port-forward to ArgoCD server"
+  value       = var.enable_argocd ? module.argocd[0].port_forward_command : "ArgoCD not enabled. Set enable_argocd = true"
+}

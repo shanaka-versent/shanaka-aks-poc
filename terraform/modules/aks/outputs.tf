@@ -57,3 +57,27 @@ output "log_analytics_workspace_id" {
   description = "Log Analytics Workspace ID (if monitoring enabled)"
   value       = var.enable_monitoring ? azurerm_log_analytics_workspace.main[0].id : null
 }
+
+output "cluster_host" {
+  description = "Kubernetes cluster API server host"
+  value       = azurerm_kubernetes_cluster.main.kube_config[0].host
+  sensitive   = true
+}
+
+output "cluster_ca_certificate" {
+  description = "Base64 encoded cluster CA certificate"
+  value       = azurerm_kubernetes_cluster.main.kube_config[0].cluster_ca_certificate
+  sensitive   = true
+}
+
+output "client_certificate" {
+  description = "Base64 encoded client certificate"
+  value       = azurerm_kubernetes_cluster.main.kube_config[0].client_certificate
+  sensitive   = true
+}
+
+output "client_key" {
+  description = "Base64 encoded client key"
+  value       = azurerm_kubernetes_cluster.main.kube_config[0].client_key
+  sensitive   = true
+}
