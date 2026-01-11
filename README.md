@@ -29,65 +29,7 @@ Kubernetes Gateway API provides a superior approach to multi-tenancy compared to
 
 ### High-Level Overview
 
-```mermaid
-flowchart TD
-    Client([Client])
-
-    subgraph AZURE [" "]
-        direction TB
-
-        subgraph AppGW ["Azure Application Gateway v2"]
-            FE["Public IP: 68.218.110.49"]
-            HTTPS1["HTTPS Listener :443"]
-            TLS1{{"TLS Termination #1"}}
-            BP["Backend Pool → 10.0.1.x"]
-        end
-
-        subgraph AKS ["AKS Cluster"]
-            ILB["Internal Load Balancer"]
-
-            subgraph ISTIO ["Istio Gateway Pod"]
-                GW["Gateway: mtkc-gateway"]
-                TLS2{{"TLS Termination #2"}}
-                HR["HTTPRoute Matching"]
-            end
-
-            subgraph APPS ["Backend Pods"]
-                H["health-responder"]
-                A1["sample-app-1"]
-                A2["sample-app-2"]
-            end
-
-            ZT["ztunnel DaemonSet"]
-        end
-    end
-
-    Client -->|"HTTPS :443"| FE
-    FE --> HTTPS1
-    HTTPS1 --> TLS1
-    TLS1 -->|"Re-encrypt"| BP
-    BP -->|"HTTPS :443"| ILB
-    ILB --> GW
-    GW --> TLS2
-    TLS2 --> HR
-    HR -->|"/healthz/*"| H
-    HR -->|"/app1"| A1
-    HR -->|"/app2"| A2
-    ZT -.->|"mTLS"| APPS
-
-    classDef azure fill:#e6f2ff,stroke:#0078d4,stroke-width:2px,color:#333
-    classDef aks fill:#f0f7ff,stroke:#326ce5,stroke-width:2px,color:#333
-    classDef istio fill:#f5f5f5,stroke:#466bb0,stroke-width:2px,color:#333
-    classDef apps fill:#f9f9f9,stroke:#6b7280,stroke-width:1px,color:#333
-    classDef tls fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#333
-
-    class AZURE azure
-    class AppGW azure
-    class AKS aks
-    class ISTIO istio
-    class APPS apps
-    class TLS1,TLS2 tls
-```
+![Architecture Diagram](/Users/shanaka/Downloads/High-level Solutions Architect.png)
 
 ### End-to-End TLS Flow (Detailed)
 
